@@ -3,7 +3,8 @@ import argparse
 import sys
 
 OUT_F_POINTS = "points.txt"
-OUT_F_IMAGE = "cropped.png"
+OUT_F_CROPPED = "cropped.png"
+OUT_F_ANNOTATED = "annotated.png"
 
 # Global variables to store selected points
 point1 = None
@@ -25,6 +26,27 @@ def click_and_crop(event, x, y, flags, param):
         cv2.rectangle(image, point1, point2, (0, 255, 0), 2)
         cv2.imshow("image", image)
 
+def annotate_squares(image):
+    # Define the number of rows and columns in the chessboard
+    rows = 8
+    cols = 8
+
+    # Calculate the width and height of each square
+    square_width = image.shape[1] // cols
+    square_height = image.shape[0] // rows
+
+    # Draw the annotations on the image
+    for row in range(rows):
+        for col in range(cols):
+            # Calculate the top-left corner of the current square
+            center_x = col * square_width + square_width // 2
+            center_y = row * square_height + square_height // 2
+
+            # Draw the coordinate annotation on the image
+            cv2.putText(image, f"({row},{col})", (center_x - 20, center_y + 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+
+    return image
+
 def main(args):
     if args.device is not None:
         cap = cv2.VideoCapture(args.device)
@@ -37,6 +59,12 @@ def main(args):
     else:
         print("Please specify either --device or --image.")
         return
+
+    # Readjust size
+    height, width = frame.shape[:2]
+    new_width = 800
+    new_height = int((new_width / width) * height)
+    frame = cv2.resize(frame, (new_width, new_height))
 
     global image, point1, point2
     image = frame
@@ -60,20 +88,29 @@ def main(args):
                 y_min = min(point1[1], point2[1])
                 x_max = max(point1[0], point2[0])
                 y_max = max(point1[1], point2[1])
-
-                # Crop the image
-                cropped_image = clone[y_min:y_max, x_min:x_max]
-                cv2.imshow('Cropped Image', cropped_image)
-                cv2.waitKey(0)
                 break
             else:
                 print("No region selected.")
 
+    # Crop the image
+    cropped_image = clone[y_min:y_max, x_min:x_max]
+
     # Save data
-    cv2.imwrite(OUT_F_IMAGE, cropped_image)
     with open(OUT_F_POINTS, 'w') as f:
         print(y_min, y_max, x_min, x_max, file=f)
         print(y_min, y_max, x_min, x_max)
+
+    annotated_image = annotate_squares(cropped_image)
+    cv2.imwrite(OUT_F_ANNOTATED, annotated_image)
+
+    while True:
+        cv2.imshow('Annotated Image', annotated_image)
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord("q"):
+            break
+
+
+    cv2.waitKey(0)
 
     cv2.destroyAllWindows()
 
