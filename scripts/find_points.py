@@ -94,6 +94,7 @@ def main(args):
 
     # Crop the image
     cropped_image = clone[y_min:y_max, x_min:x_max]
+    cv2.imwrite(OUT_F_CROPPED, cropped_image)
 
     # Save data
     with open(OUT_F_POINTS, 'w') as f:
