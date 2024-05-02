@@ -35,6 +35,8 @@ def close_communication():
     GPIO.cleanup()
 
 def _send_command(command):
+    logging.info(f'Sending command {command}...')
+
     # 16 bits command
     for bit in range(16):
         bit_value = (command >> (15 - bit)) & 1
@@ -54,9 +56,11 @@ def _send_command(command):
         signal = GPIO.input(_PIN_IN_RESP)
         # Wait for low signal
         if signal == GPIO.LOW:
+            logging.info('Response success')
             return RESPONSE_SUCCESS
         time.sleep(_DELAY_WAIT_S)
 
+    logging.warning(f'Response timeout after {_DELAY_TIMEOUT_S}s!')
     return RESPONSE_TIMEOUT
 
 
