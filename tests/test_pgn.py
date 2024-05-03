@@ -65,12 +65,14 @@ def play_from_pgn(pgn_file):
             print(prev_move)
             return communication.RESPONSE_TIMEOUT
 
+        display_board(current_board)
+
         node = next(nodes)
         while node.move is None:
             node = next(nodes)
 
         if node.move is None:
-            return
+            return communication.RESPONSE_SUCCESS
 
         if not current_board.is_legal(node.move):
             print('Invalid move!')
@@ -78,14 +80,10 @@ def play_from_pgn(pgn_file):
             print(node.move)
             return
 
-        display_board(current_board)
         _background_move(current_board, node.move, next_move)
 
     next_move(communication.RESPONSE_SUCCESS, None)
 
-    # Print the final board and result
-    display_board(current_board)
-    return communication.RESPONSE_SUCCESS
 
 def _background_move(board, move, callback):
     def thread_func():
