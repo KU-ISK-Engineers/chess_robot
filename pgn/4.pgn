@@ -1,0 +1,20 @@
+[Event "Live Chess"]
+[Site "Chess.com"]
+[Date "2024.02.13"]
+[Round "-"]
+[White "squarechecker"]
+[Black "np_42"]
+[Result "0-1"]
+[WhiteElo "1434"]
+[BlackElo "1472"]
+[TimeControl "600"]
+[EndTime "0:40:54 PST"]
+[Termination "np_42 won by checkmate"]
+
+1. e4 e5 2. Bc4 Nc6 3. c3 Nf6 4. d3 a6 5. a4 d5 6. exd5 Nxd5 7. Qf3 Nf6 8. Bg5
+Be7 9. h4 Na5 10. Ba2 Rb8 11. b4 Nc6 12. b5 Na7 13. bxa6 bxa6 14. Ne2 O-O 15. h5
+Re8 16. h6 Bb7 17. Qe3 Ng4 18. Bxe7 Qxe7 19. Qg3 Qg5 20. Qf3 Bxf3 21. gxf3 Nxh6
+22. Nd2 Rb2 23. Ne4 Qd8 24. Bc4 Rb6 25. Ng5 Qxg5 26. a5 Rd6 27. Rb1 e4 28. dxe4
+Qxa5 29. O-O Rg6+ 30. Ng3 Qh5 31. Rb7 Qxf3 32. Rxa7 Rxg3+ 33. fxg3 Qe3+ 34. Kh2
+Qxa7 35. Kh3 Rxe4 36. Rd1 Re8 37. Kh4 Qf2 38. Bxa6 Kh8 39. Bb5 Rb8 40. Rd5 f6
+41. Bd7 Qh2+ 42. Bh3 g5+ 43. Kh5 Qxh3# 0-1
