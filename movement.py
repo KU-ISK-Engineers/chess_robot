@@ -70,6 +70,7 @@ def make_move(board: chess.Board, move: chess.Move):
 
 def move_piece(from_square, to_square, prev_response=communication.RESPONSE_SUCCESS):
     """Assume move is valid, call before pushing move in memory!"""
+    # TODO: Add retry logic
     if prev_response == communication.RESPONSE_SUCCESS:
         from_str = chess.square_name(from_square)
         to_str = chess.square_name(to_square)
@@ -86,82 +87,28 @@ def reset_board(
     current_board: chess.Board, expected_board: chess.Board = chess.Board()
 ):
     """
-    TODO: Not yet implemented
+    TODO: Not yet implemented efficiently
     Assume expected board can be created using current pieces
     """
-    current_groups = _group_pieces(current_board)
-    expected_groups = _group_pieces(expected_board)
 
-    for player, groups in expected_groups.items():
-        for piece_type, expected_pieces in groups.items():
-            current_pieces = current_groups[player][piece_type]
-            off_board_count = {
-                piece: count - len(current_pieces)
-                for piece, count in _PIECE_COUNTS.items()
-            }
-
-            # filter out pieces in correct spots
-            i = 0
-            j = 0
-            while i < len(current_pieces) and j < len(expected_pieces):
-                current_square = current_pieces[i]
-                expected_square = expected_pieces[j]
-
-                if current_square > expected_square:
-                    j = j + 1
-                elif expected_square > current_square:
-                    i = i + 1
-                else:
-                    del current_pieces[i]
-                    del expected_pieces[j]
-
-            # TODO: validate signals
-            i = 0
-            j = 0
-            while i < len(current_pieces) and j < len(expected_pieces):
-                current_square = current_pieces[i]
-                expected_square = expected_pieces[j]
-
-                if current_square > expected_square:
-                    if off_board_count[piece_type]:
-                        origin_square = communication.off_board_square(
-                            piece_type, player
-                        )
-                        move_piece(origin_square, expected_square)
-                elif expected_square > current_square:
-                    move_piece(current_square, expected_square)
-                    i = i + 1
-                else:
-                    continue
-
-
-def _group_pieces(board: chess.Board):
-    """Ensures squares are sorted"""
-
-    groups = {
-        chess.WHITE: {
-            chess.PAWN: [],
-            chess.ROOK: [],
-            chess.BISHOP: [],
-            chess.KNIGHT: [],
-            chess.QUEEN: [],
-            chess.KING: [],
-        },
-        chess.BLACK: {
-            chess.PAWN: [],
-            chess.ROOK: [],
-            chess.BISHOP: [],
-            chess.KNIGHT: [],
-            chess.QUEEN: [],
-            chess.KING: [],
-        },
-    }
-
+    # Move all current pieces off the board
     for square in chess.SQUARES:
-        piece = board.piece_at(square)
-        if piece:
-            groups[piece.color][piece.piece_type].append(square)
-    return groups
+        current_piece = current_board.piece_at(square)
+        if current_piece:
+            target_square = communication.off_board_square(current_piece.piece_type, current_piece.color)
+            if move_piece(square, target_square) == communication.RESPONSE_TIMEOUT:
+                return communication.RESPONSE_TIMEOUT
+
+
+    # Place all pieces to the target squares
+    for square in chess.SQUARES:
+        expected_piece = expected_board.piece_at(square)
+        if expected_piece:
+            origin_square = communication.off_board_square(expected_piece.piece_type, expected_piece.color)
+            if move_piece(origin_square, square) == communication.RESPONSE_TIMEOUT:
+                return communication.RESPONSE_TIMEOUT
+
+    return communication.RESPONSE_SUCCESS
 
 
 def _castle_rook_move(board: chess.Board, move: chess.Move):
