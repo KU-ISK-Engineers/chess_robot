@@ -7,6 +7,7 @@ from PIL import Image, ImageTk
 import io
 import cairosvg
 import sys
+import threading
 
 sys.path.append('../')
 
@@ -54,30 +55,44 @@ def play_from_pgn(pgn_file):
        return communication.RESPONSE_TIMEOUT
     current_board = pgn_board
 
+    nodes = iter(game.mainline())
+
     # Loop through the moves in the game
-    for node in game.mainline():
-        if node.move is None:
-            continue
-
-        if not current_board.is_legal(node.move):
-            continue
-
-        # Visualize current position
-        display_board(current_board)
-        if movement.make_move(current_board, node.move) == communication.RESPONSE_TIMEOUT:
+    def next_move(prev_response, prev_move):
+        if prev_response == communication.RESPONSE_TIMEOUT:
             print('Move timeout!')
             print(current_board)
-            print(node.move)
+            print(prev_move)
             return communication.RESPONSE_TIMEOUT
 
+        node = next(nodes)
+        while node.move is None:
+            node = next(nodes)
 
-        # Print the board after each move
-        current_board.push(node.move)
+        if node.move is None:
+            return
+
+        if not current_board.is_legal(node.move):
+            print('Invalid move!')
+            print(current_board)
+            print(node.move)
+            return
+
+        display_board(current_board)
+        _background_move(current_board, node.move, next_move)
+
+    next_move(communication.RESPONSE_SUCCESS, None)
 
     # Print the final board and result
     display_board(current_board)
     return communication.RESPONSE_SUCCESS
 
+def _background_move(board, move, callback):
+    def thread_func():
+        callback(movement.make_move(board, move), move)
+
+    thread = threading.Thread(target=thread_func)
+    thread.start()
 
 def play_from_directory(directory):
     for filename in os.listdir(directory):

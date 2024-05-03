@@ -1,18 +1,7 @@
 import logging
 import chess
 
-import communication
-
-# Max pieces each player can have
-_PIECE_COUNTS = {
-    chess.PAWN: 8,
-    chess.ROOK: 2,
-    chess.BISHOP: 2,
-    chess.KNIGHT: 2,
-    chess.QUEEN: 1,
-    chess.KING: 1,
-}
-
+from . import communication
 
 def make_move(board: chess.Board, move: chess.Move):
     """Assume move is valid, call before pushing move in memory!"""
