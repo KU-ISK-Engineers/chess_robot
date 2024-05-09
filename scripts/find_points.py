@@ -26,6 +26,8 @@ def click_and_crop(event, x, y, flags, param):
         cv2.rectangle(image, point1, point2, (0, 255, 0), 2)
         cv2.imshow("image", image)
 
+import cv2
+
 def annotate_squares(image):
     # Define the number of rows and columns in the chessboard
     rows = 8
@@ -35,15 +37,22 @@ def annotate_squares(image):
     square_width = image.shape[1] // cols
     square_height = image.shape[0] // rows
 
-    # Draw the annotations on the image
+    # Draw the annotations and squares on the image
     for row in range(rows):
         for col in range(cols):
-            # Calculate the top-left corner of the current square
+            # Calculate the top-left and bottom-right corners of the current square
+            top_left = (col * square_width, row * square_height)
+            bottom_right = ((col + 1) * square_width, (row + 1) * square_height)
+
+            # Draw the square using a rectangle
+            cv2.rectangle(image, top_left, bottom_right, (0, 255, 0), 2)  # Green color, 2 px thickness
+
+            # Calculate the center for placing text
             center_x = col * square_width + square_width // 2
             center_y = row * square_height + square_height // 2
 
             # Draw the coordinate annotation on the image
-            cv2.putText(image, f"({row},{col})", (center_x - 20, center_y + 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+            cv2.putText(image, f"({row},{col})", (center_x - 20, center_y + 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)  # Red color
 
     return image
 
