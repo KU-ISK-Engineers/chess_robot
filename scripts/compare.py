@@ -22,7 +22,7 @@ def slice_into_squares(image, rows=8, cols=8):
             squares.append((square, (row, col)))
     return squares
 
-def compare_squares(squares1, squares2, threshold=255*150):
+def compare_squares(squares1, squares2, threshold=255*75):
     changes = {'taken': [], 'put': [], 'unchanged': []}
     for (sq1, pos1), (sq2, pos2) in zip(squares1, squares2):
         diff = cv2.absdiff(sq1, sq2)
