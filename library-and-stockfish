@@ -1,6 +1,18 @@
 import chess.engine
 
-def play_chess():
+def get_depth(level):
+    if level == "beginner":
+        return 2
+    elif level == "intermediate":
+        return 4
+    elif level == "advanced":
+        return 6
+    elif level == "unbeatable":
+        return 20  # Or any high depth you desire
+    else:
+        return 4  # Default to intermediate
+
+def play_chess(level):
     # Start the Stockfish engine
     engine = chess.engine.SimpleEngine.popen_uci("stockfish\stockfish-windows-x86-64-avx2.exe")
 
@@ -26,7 +38,7 @@ def play_chess():
 
         else:
             # Stockfish's move
-            result = engine.play(board, chess.engine.Limit(time=0.1))
+            result = engine.play(board, chess.engine.Limit(depth=get_depth(level)))
             best_move = result.move
             board.push(best_move)
 
@@ -35,5 +47,5 @@ def play_chess():
     engine.quit()
 
 if __name__ == "__main__":
-    play_chess()
-
+    level = input("Choose the level (beginner, intermediate, advanced, unbeatable): ").lower()
+    play_chess(level)
