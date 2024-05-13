@@ -1,0 +1,25 @@
+import chess.engine
+
+def play_chess():
+    # Start the Stockfish engine
+    engine = chess.engine.SimpleEngine.popen_uci("stockfish\stockfish-windows-x86-64-avx2.exe")
+
+    # Start a new game
+    board = chess.Board()
+
+    while not board.is_game_over():
+        print(board)
+        
+        # Get the best move from Stockfish
+        result = engine.play(board, chess.engine.Limit(time=0.1))
+        best_move = result.move
+
+        # Make the move on the board
+        board.push(best_move)
+
+    print("Game Over")
+    print("Result:", board.result())
+    engine.quit()
+
+if __name__ == "__main__":
+    play_chess()
