@@ -7,7 +7,7 @@ from cvlib.object_detection import YOLO
   
 # Replace the below URL with your own IP provided by the IP WEBCAM APP.
 # Make sure to add "/shot.jpg" at last.
-url = "http://192.168.0.205:8080/shot.jpg"
+url = "http://192.168.0.143:8091/shot.jpg"
   
 # While loop to continuously fetching data from the Url
 
@@ -38,24 +38,3 @@ while True:
   
 
 cv2.destroyAllWindows()
-# import cv2
-#
-# cap=cv2.VideoCapture('http://192.168.0.205:8080/shot.jpg')
-# while True:
-#     ret,img=cap.read()
-#     if not ret:
-#         print('Error?')
-#         continue
-#     img=cv2.resize(img,(680,460))
-#     cv2.imshow('frame', img)
-
-    # count += 1
-    # if count % 10 != 0:
-    #     continue
-    # 
-    # if cv2.waitKey(1)&0xFF==27:
-    #     break
-
-
-#cap=cv2.VideoCapture('http://192.168.0.205:8080')
-
