@@ -26,13 +26,15 @@ def main():
     camera = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateFirstDevice())
     camera.Open()
 
-    camera.ExposureAuto.SetValue('Continuous')
+    camera.AcquisitionFrameRateEnable.SetValue(True)
+    camera.AcquisitionFrameRate.SetValue(5)
+    camera.ExposureAuto.SetValue('Once')
     camera.AcquisitionMode.SetValue("Continuous")
     camera.PixelFormat.SetValue("RGB8")
     camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
     cv2.namedWindow("Camera View", cv2.WINDOW_NORMAL)
 
-    weights = "yolov4-tiny-custom_best.weights"
+    weights = "chess-weights/yolov4-tiny-custom_best.weights"
     config = "yolov4-tiny-custom.cfg"
     labels = "obj.names"
     yolo = YOLO(weights, config, labels)
@@ -43,7 +45,7 @@ def main():
             if grab_result.GrabSucceeded():
                 image = grab_result.Array
                 if image is not None and image.size != 0:
-                    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+                    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
                     #image = resize_with_aspectratio(image, width=416)  # Resize maintaining aspect ratio
                     original = image.copy()  # Keep a copy of the original for drawing
 
