@@ -30,7 +30,7 @@ def main(output_dir):
                 image = grab_result.Array
                 
                 # Convert the RGB image to BGR
-                image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+                image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
                 # Display the resulting frame
                 cv2.imshow('Camera View', image)
