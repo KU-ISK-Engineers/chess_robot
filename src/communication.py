@@ -4,21 +4,21 @@ import time
 import chess
 
 # Pin configuration
-_PIN_OUT_DAT = 11
-_PIN_OUT_CLK = 13
-_PIN_IN_RESP = 15
+PIN_OUT_DAT = 11
+PIN_OUT_CLK = 13
+PIN_IN_RESP = 15
 
 # Delay configuration
-_DELAY_TIMEOUT_MIN_S = 0.5
-_DELAY_TIMEOUT_MAX_S = 10
-_DELAY_WAIT_S = 0.1
+DELAY_TIMEOUT_MIN_S = 0.5
+DELAY_TIMEOUT_MAX_S = 10
+DELAY_WAIT_S = 0.1
 
 # Signal waiting return values
 RESPONSE_TIMEOUT = 0
 RESPONSE_SUCCESS = 1
 
 # Off the board pieces identifiers
-_OFF_BOARD_PIECES = {
+OFF_BOARD_PIECES = {
     (chess.ROOK, chess.WHITE): -1,
     (chess.BISHOP, chess.WHITE): -2,
     (chess.KNIGHT, chess.WHITE): -3,
@@ -35,7 +35,7 @@ _OFF_BOARD_PIECES = {
 
 
 def off_board_square(piece_type, color):
-    return _OFF_BOARD_PIECES[(piece_type, color)]
+    return OFF_BOARD_PIECES[(piece_type, color)]
 
 
 def setup_communication():
@@ -44,13 +44,13 @@ def setup_communication():
     GPIO.setmode(GPIO.BOARD)
 
     # Pin directions
-    GPIO.setup(_PIN_OUT_CLK, GPIO.OUT)
-    GPIO.setup(_PIN_OUT_DAT, GPIO.OUT)
-    GPIO.setup(_PIN_IN_RESP, GPIO.IN)
+    GPIO.setup(PIN_OUT_CLK, GPIO.OUT)
+    GPIO.setup(PIN_OUT_DAT, GPIO.OUT)
+    GPIO.setup(PIN_IN_RESP, GPIO.IN)
 
     # Initial values
-    GPIO.output(_PIN_OUT_CLK, GPIO.LOW)
-    GPIO.output(_PIN_OUT_DAT, GPIO.LOW)
+    GPIO.output(PIN_OUT_CLK, GPIO.LOW)
+    GPIO.output(PIN_OUT_DAT, GPIO.LOW)
 
 
 def close_communication():
@@ -74,33 +74,33 @@ def issue_command(command):
     for bit in range(16):
         bit_value = (command >> (15 - bit)) & 1
 
-        GPIO.output(_PIN_OUT_DAT, GPIO.HIGH if bit_value else GPIO.LOW)
+        GPIO.output(PIN_OUT_DAT, GPIO.HIGH if bit_value else GPIO.LOW)
 
         # Toggle the clock to signal data is ready
         # TODO: If necessary switch to pigpio for more accurate timing precision
-        GPIO.output(_PIN_OUT_CLK, GPIO.HIGH)
+        GPIO.output(PIN_OUT_CLK, GPIO.HIGH)
         time.sleep(0.0001)
-        GPIO.output(_PIN_OUT_CLK, GPIO.LOW)
+        GPIO.output(PIN_OUT_CLK, GPIO.LOW)
         time.sleep(0.0001)
 
     # Wait for signal
     time_started = time.time()
 
-    while _DELAY_TIMEOUT_MAX_S > time.time() - time_started:
-        signal = GPIO.input(_PIN_IN_RESP)
+    while DELAY_TIMEOUT_MAX_S > time.time() - time_started:
+        signal = GPIO.input(PIN_IN_RESP)
         if signal == GPIO.HIGH:
-            if _DELAY_TIMEOUT_MIN_S > time.time() - time_started:
-                logging.warning(f"Response too quick (<{_DELAY_TIMEOUT_MIN_S}s)!")
+            if DELAY_TIMEOUT_MIN_S > time.time() - time_started:
+                logging.warning(f"Response too quick (<{DELAY_TIMEOUT_MIN_S}s)!")
                 return RESPONSE_TIMEOUT
 
             logging.info("Response success")
             return RESPONSE_SUCCESS
-        time.sleep(_DELAY_WAIT_S)
+        time.sleep(DELAY_WAIT_S)
 
-    logging.warning(f"Response too slow (>{_DELAY_TIMEOUT_MAX_S}s)!")
+    logging.warning(f"Response too slow (>{DELAY_TIMEOUT_MAX_S}s)!")
     return RESPONSE_TIMEOUT
 
 
 def is_available():
-    signal = GPIO.input(_PIN_IN_RESP)
+    signal = GPIO.input(PIN_IN_RESP)
     return signal == GPIO.HIGH

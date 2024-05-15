@@ -1,7 +1,10 @@
 import logging
+from typing import List, Optional
 import chess
 
 from . import communication
+
+# TODO: Make moves in consideration of what the camera is showing (/ whatever the fuck the user is currently doing)
 
 def make_move(board: chess.Board, move: chess.Move):
     """Assume move is valid, call before pushing move in memory!"""
@@ -57,9 +60,8 @@ def make_move(board: chess.Board, move: chess.Move):
     return response
 
 
-def move_piece(from_square, to_square, prev_response=communication.RESPONSE_SUCCESS):
+def move_piece(from_square: chess.Square, to_square: chess.Square, prev_response=communication.RESPONSE_SUCCESS):
     """Assume move is valid, call before pushing move in memory!"""
-    # TODO: Add retry logic
     if prev_response == communication.RESPONSE_SUCCESS:
         from_str = chess.square_name(from_square)
         to_str = chess.square_name(to_square)
@@ -72,54 +74,170 @@ def move_piece(from_square, to_square, prev_response=communication.RESPONSE_SUCC
         return prev_response
 
 
-def reset_board(
-    current_board: chess.Board, expected_board: chess.Board = chess.Board()
-):
+def reset_board(current_board: chess.Board, expected_board: Optional[chess.Board] = None) -> int:
     """
-    TODO: Not yet implemented efficiently
-    Assume expected board can be created using current pieces
+    Assumes expected_board can be created using current pieces.
     """
 
-    # Move all current pieces off the board
-    for square in chess.SQUARES:
-        current_piece = current_board.piece_at(square)
-        if current_piece:
-            target_square = communication.off_board_square(current_piece.piece_type, current_piece.color)
-            if move_piece(square, target_square) == communication.RESPONSE_TIMEOUT:
-                return communication.RESPONSE_TIMEOUT
+    if expected_board is None:
+        expected_board = chess.Board()
 
+    # Create mappings for current and expected piece positions
+    current_positions = {square: current_board.piece_at(square) for square in chess.SQUARES if current_board.piece_at(square)}
+    expected_positions = {square: expected_board.piece_at(square) for square in chess.SQUARES if expected_board.piece_at(square)}
 
-    # Place all pieces to the target squares
-    for square in chess.SQUARES:
-        expected_piece = expected_board.piece_at(square)
-        if expected_piece:
-            origin_square = communication.off_board_square(expected_piece.piece_type, expected_piece.color)
-            if move_piece(origin_square, square) == communication.RESPONSE_TIMEOUT:
-                return communication.RESPONSE_TIMEOUT
+    # Find pieces that are correctly placed, to avoid unnecessary moves
+    correctly_placed = {square: piece for square, piece in expected_positions.items() if current_positions.get(square) == piece}
+
+    # Remove correctly placed pieces from current and expected mappings
+    for square in correctly_placed:
+        current_positions.pop(square, None)
+        expected_positions.pop(square, None)
+
+    # Use list to track empty squares on the board
+    empty_squares = [square for square in chess.SQUARES if square not in current_positions and square not in expected_positions]
+
+    # Helper function to move a piece and update mappings
+    def move_piece_and_update(start_square, end_square):
+        if move_piece(start_square, end_square) == communication.RESPONSE_TIMEOUT:
+            return communication.RESPONSE_TIMEOUT
+        piece = current_board.remove_piece_at(start_square)
+        current_board.set_piece_at(end_square, piece)
+        current_positions.pop(start_square)
+        current_positions[end_square] = piece
+        if end_square in expected_positions and expected_positions[end_square] == piece:
+            expected_positions.pop(end_square)
+        return communication.RESPONSE_SUCCESS
+
+    # First pass: move pieces directly to their target positions if possible
+    for square, piece in expected_positions.copy().items():
+        if piece in current_positions.values():
+            for start_square, current_piece in current_positions.items():
+                if current_piece == piece and move_piece_and_update(start_square, square) == communication.RESPONSE_TIMEOUT:
+                    return communication.RESPONSE_TIMEOUT
+
+    # Second pass: move remaining pieces out of the way, using empty squares as intermediate holding spots
+    for start_square, piece in current_positions.copy().items():
+        if piece not in expected_positions.values():
+            if empty_squares:
+                temp_square = empty_squares.pop(0)
+                if move_piece_and_update(start_square, temp_square) == communication.RESPONSE_TIMEOUT:
+                    return communication.RESPONSE_TIMEOUT
+
+    # Third pass: place pieces in their final positions from temporary spots or off-board
+    for square, piece in expected_positions.items():
+        origin_square = None
+        for temp_square in current_positions:
+            if current_positions[temp_square] == piece:
+                origin_square = temp_square
+                break
+        if origin_square is None:
+            origin_square = communication.off_board_square(piece.piece_type, piece.color)
+        if move_piece_and_update(origin_square, square) == communication.RESPONSE_TIMEOUT:
+            return communication.RESPONSE_TIMEOUT
 
     return communication.RESPONSE_SUCCESS
 
+def identify_move(prev_board: chess.Board, current_board: chess.Board) -> Optional[chess.Move]:
+    """
+    Don't forget to validate move afterwards before using it
+    """
 
-def _castle_rook_move(board: chess.Board, move: chess.Move):
+    # Find piece differences
+    dissapeared: List[chess.Square] = []
+    appeared: List[chess.Square] = []
+
+    for square in chess.SQUARES:
+        prev_piece = prev_board.piece_at(square)
+        curr_piece = current_board.piece_at(square)
+
+        if prev_piece != curr_piece:
+            if prev_piece is not None and curr_piece is None:
+                dissapeared.append(square)
+            else: # New piece or captured
+                appeared.append(square)
+
+    # Handle castling
+    if len(dissapeared) == 2 and len(appeared) == 2:
+        if prev_board.piece_at(dissapeared[0]).piece_type != chess.KING:
+            dissapeared = [dissapeared[1], dissapeared[0]]
+        if current_board.piece_at(appeared[0]).piece_type != chess.KING:
+            appeared = [appeared[1], appeared[0]]
+
+        king_move_from, king_move_to = dissapeared[0], appeared[0]
+        rook_move_from, rook_move_to = dissapeared[1], appeared[1]
+
+        expected_king = prev_board.piece_at(king_move_from)
+        if expected_king.piece_type != chess.KING:
+            return None # No king in origin square
+        
+        if current_board.piece_at(king_move_to) != expected_king:
+            return None # Not correct piece where king is supposed to be
+        
+        expected_rook = chess.Piece(chess.ROOK, expected_king.color)
+        if prev_board.piece_at(rook_move_from) != expected_rook or current_board.piece_at(rook_move_to) != expected_rook:
+            return None # Rooks aren't in respective squares
+
+        dx = chess.square_file(king_move_from) - chess.square_file(king_move_to)
+        if abs(dx) != 2:
+            return None # King wrong movement
+        if chess.square_file(king_move_from) != 4:
+            return None # King wrong place for castling
+        
+        king_move = chess.Move(king_move_from, king_move_to)
+        rook_move = _castle_rook_move(prev_board, king_move)
+        if rook_move.from_square != rook_move_from or rook_move.to_square != rook_move_to:
+            return None # Rook invalid move
+        
+        return king_move
+
+    # Handle en passant
+    elif len(dissapeared) == 2 and len(appeared) == 1:
+        pawn_move_from = None
+        en_passant_square = None
+        pawn_move_to = appeared[0]
+
+        if prev_board.piece_at(dissapeared[0]).piece_type == chess.PAWN and chess.square_file(dissapeared[0]) != chess.square_file(pawn_move_to):
+            pawn_move_from = dissapeared[0]
+            en_passant_square = dissapeared[1]
+        else:
+            pawn_move_from = dissapeared[1]
+            en_passant_square = dissapeared[0]
+
+        move = chess.Move(pawn_move_from, pawn_move_to)
+        if not prev_board.is_en_passant(move):
+            return None
+        if _en_passant_captured(move) != en_passant_square:
+            return None
+        return move
+
+    # Handle normal and promotion moves
+    elif len(dissapeared) == 1 and len(appeared) == 1:
+        move = chess.Move(dissapeared[0], appeared[0])
+        
+        # Check for promotion
+        if prev_board.piece_at(dissapeared[0]).piece_type == chess.PAWN and chess.square_rank(appeared[0]) in (0,7):
+            promotion_piece_type = current_board.piece_at(appeared[0]).piece_type
+            move = chess.Move(dissapeared[0], appeared[0], promotion=promotion_piece_type)
+
+        return move
+
+    return None
+ 
+def _castle_rook_move(board: chess.Board, move: chess.Move) -> chess.Move:
     """Assume move is castling"""
 
-    # Determine if the castling is kingside or queenside
     is_kingside = board.is_kingside_castling(move)
 
     king_from_square = move.from_square
     king_to_square = move.to_square
 
-    # Calculate the rook's initial and final positions based on the king's movement
     if is_kingside:
         rook_from = king_from_square + 3  # Rook starts 3 squares right from the king
-        rook_to = (
-            king_to_square - 1
-        )  # Rook ends up 1 square left from the king's destination
+        rook_to = king_to_square - 1 # Rook ends up 1 square left from the king's destination
     else:
         rook_from = king_from_square - 4  # Rook starts 4 squares left from the king
-        rook_to = (
-            king_to_square + 1
-        )  # Rook ends up 1 square right from the king's destination
+        rook_to = king_to_square + 1 # Rook ends up 1 square right from the king's destination
 
     return chess.Move(rook_from, rook_to)
 
