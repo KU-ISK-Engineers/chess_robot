@@ -48,8 +48,8 @@ def process_image(img_path, output_directory, brightness_probability):
     
     augmented_image, augmented_bboxes = augment_image(image, bboxes, class_labels, transform)
     
-    output_img_path = os.path.join(output_directory, f"{base_name}.png")
-    output_bbox_path = os.path.join(output_directory, f"{base_name}.txt")
+    output_img_path = os.path.join(output_directory, f"{base_name}_brightness.png")
+    output_bbox_path = os.path.join(output_directory, f"{base_name}_brightness.txt")
     
     cv2.imwrite(output_img_path, augmented_image)
     save_bboxes(output_bbox_path, augmented_bboxes, class_labels)
