@@ -9,12 +9,6 @@ def read_points(file_path):
         raise ValueError("Expected four integers in the file.")
     return points
 
-def resize_image(image, width=800):
-    height, original_width = image.shape[:2]
-    new_height = int((width / original_width) * height)
-    resized_image = cv2.resize(image, (width, new_height))
-    return resized_image
-
 def crop_image(image, points):
     y_min, y_max, x_min, x_max = points
     cropped_image = image[y_min:y_max, x_min:x_max]
@@ -48,7 +42,7 @@ def update_annotations(annotations, points, original_size, cropped_size):
         width /= cropped_width
         height /= cropped_height
 
-        updated_annotations.append(f"{class_id} {x_center:.6f} {y_center:.6f} {width:.6f} {height:.6f}")
+        updated_annotations.append(f"{int(class_id)} {x_center:.6f} {y_center:.6f} {width:.6f} {height:.6f}")
     
     return updated_annotations
 
@@ -78,7 +72,6 @@ def process_directory(image_directory, points_file, output_directory):
                 continue
 
             original_size = image.shape[:2]
-            image = resize_image(image)
             cropped_image = crop_image(image, points)
             cropped_size = cropped_image.shape[:2]
 

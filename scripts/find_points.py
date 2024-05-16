@@ -26,8 +26,6 @@ def click_and_crop(event, x, y, flags, param):
         cv2.rectangle(image, point1, point2, (0, 255, 0), 2)
         cv2.imshow("image", image)
 
-import cv2
-
 def annotate_squares(image):
     # Define the number of rows and columns in the chessboard
     rows = 8
@@ -69,27 +67,22 @@ def main(args):
         print("Please specify either --device or --image.")
         return
 
-    # Readjust size
-    height, width = frame.shape[:2]
-    new_width = 800
-    new_height = int((new_width / width) * height)
-    frame = cv2.resize(frame, (new_width, new_height))
-
     global image, point1, point2
     image = frame
     clone = image.copy()
 
-    cv2.namedWindow("image")
+    cv2.namedWindow("image", cv2.WINDOW_NORMAL)  # Use WINDOW_NORMAL to allow window resizing
+    cv2.imshow("image", image)
     cv2.setMouseCallback("image", click_and_crop)
 
     while True:
-        cv2.imshow("image", image)
         key = cv2.waitKey(1) & 0xFF
 
         if key == ord("r"):
             image = clone.copy()
             point1 = None
             point2 = None
+            cv2.imshow("image", image)
         elif key == ord("c"):
             if point1 and point2:
                 # Calculate top-left and bottom-right points of the bounding box
@@ -119,15 +112,11 @@ def main(args):
         if key == ord("q"):
             break
 
-
-    cv2.waitKey(0)
-
     cv2.destroyAllWindows()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Crop an image interactively.')
-    parser.add_argument('--device', type=str, help='Device index to capture from (e.g., 0 for webcam)')
+    parser.add_argument('--device', type=int, help='Device index to capture from (e.g., 0 for webcam)')
     parser.add_argument('--image', type=str, help='Path to an image file')
     args = parser.parse_args()
     main(args)
-
