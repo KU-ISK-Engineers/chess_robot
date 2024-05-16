@@ -26,15 +26,15 @@ def main():
     camera = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateFirstDevice())
     camera.Open()
 
-    camera.AcquisitionFrameRateEnable.SetValue(True)
-    camera.AcquisitionFrameRate.SetValue(5)
-    camera.ExposureAuto.SetValue('Once')
+    #camera.AcquisitionFrameRateEnable.SetValue(True)
+    #camera.AcquisitionFrameRate.SetValue(5)
+    camera.ExposureAuto.SetValue('Continuous')
     camera.AcquisitionMode.SetValue("Continuous")
     camera.PixelFormat.SetValue("RGB8")
     camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
     cv2.namedWindow("Camera View", cv2.WINDOW_NORMAL)
 
-    weights = "chess-weights/yolov4-tiny-custom_best.weights"
+    weights = "chess2-weights/yolov4-tiny-custom_best.weights"
     config = "yolov4-tiny-custom.cfg"
     labels = "obj.names"
     yolo = YOLO(weights, config, labels)
@@ -45,13 +45,22 @@ def main():
             if grab_result.GrabSucceeded():
                 image = grab_result.Array
                 if image is not None and image.size != 0:
-                    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+                    # Convert the grayscale image to a 3-channel grayscale image
+                    image_3_channel = cv2.merge([image, image, image])
+
+                    # Keep a copy of the original for drawing
+                    original = image_3_channel.copy()
+
                     #image = resize_with_aspectratio(image, width=416)  # Resize maintaining aspect ratio
-                    original = image.copy()  # Keep a copy of the original for drawing
+                    #original = image.copy()  # Keep a copy of the original for drawing
 
-                    bbox, label, conf = yolo.detect_objects(image)
+                    bbox, label, conf = yolo.detect_objects(image_3_channel)
 
-                                        # Manual bounding box drawing for debugging
+                    print(bbox, label, conf)
+
+                    # Manual bounding box drawing for debugging
                     for box, lbl, cf in zip(bbox, label, conf):
                         if cf > 0.5:  # Filter out low confidence detections
                             x, y, w, h = box
