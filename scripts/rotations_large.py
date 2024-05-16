@@ -3,6 +3,7 @@ import os
 import math
 from PIL import Image
 import sys
+from concurrent.futures import ThreadPoolExecutor
 
 def crop_image_by_annotation(image_path, annotation, output_folder, angle_step):
     # Load the image
@@ -70,35 +71,48 @@ def crop_image_by_annotation(image_path, annotation, output_folder, angle_step):
             with open(rotated_annotation_txt_path, 'w') as f:
                 center_x_new = float(center_x_norm)
                 center_y_new = float(center_y_norm)
-                width_new = (float( width_norm)+ float(height_norm))/2
+                width_new = mean_edge / image_width
                 height_new = width_new
                 f.write(f"{label} {center_x_new:.6f} {center_y_new:.6f} {width_new:.6f} {height_new:.6f}")
 
     except ValueError as e:
         print(f"Error processing {image_path}: {e}")
 
+def process_file(input_folder, output_folder, angle_step, filename):
+    image_path = os.path.join(input_folder, filename)
+    annotation_path = os.path.join(input_folder, os.path.splitext(filename)[0] + '.txt')
+
+    # Check if corresponding annotation file exists
+    if os.path.exists(annotation_path):
+        # Read annotation from the text file
+        with open(annotation_path, 'r') as f:
+            annotation_str = f.read().strip()
+            annotation = tuple(annotation_str.split())
+
+        # Crop the image and save
+        crop_image_by_annotation(image_path, annotation, output_folder, angle_step)
+    else:
+        print(f"Annotation file not found for {filename}")
+
 def process_folder(input_folder, output_folder, angle_step):
     # Create output folder if it doesn't exist
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
     
-    # Iterate through all files in the input folder
+    # Get list of files to process
+    files_to_process = []
     for filename in os.listdir(input_folder):
         if filename.endswith(".png"):
-            image_path = os.path.join(input_folder, filename)
-            annotation_path = os.path.join(input_folder, os.path.splitext(filename)[0] + '.txt')
-            
-            # Check if corresponding annotation file exists
-            if os.path.exists(annotation_path):
-                # Read annotation from the text file
-                with open(annotation_path, 'r') as f:
-                    annotation_str = f.read().strip()
-                    annotation = tuple(annotation_str.split())
-                
-                # Crop the image and save
-                crop_image_by_annotation(image_path, annotation, output_folder, angle_step)
-            else:
-                print(f"Annotation file not found for {filename}")
+            files_to_process.append(filename)
+    
+    # Use ThreadPoolExecutor to process files concurrently
+    with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
+        # Use submit to start the processing of each file
+        futures = [executor.submit(process_file, input_folder, output_folder, angle_step, filename) for filename in files_to_process]
+
+        # Wait for all futures to complete
+        for future in futures:
+            future.result()  # This blocks until the result is ready
 
 if __name__ == "__main__":
     if len(sys.argv) != 4:
@@ -107,6 +121,7 @@ if __name__ == "__main__":
 
     input_directory = sys.argv[1]
     output_directory = sys.argv[2]
-    angle_step = sys.argv[3]
+    angle_step = int(sys.argv[3])  # Convert angle_step to integer
     
     process_folder(input_directory, output_directory, angle_step)
+
