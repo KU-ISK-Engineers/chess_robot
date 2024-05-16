@@ -1,6 +1,8 @@
-from PIL import Image
+import argparse
 import os
 import math
+from PIL import Image
+import sys
 
 def crop_image_by_annotation(image_path, annotation, output_folder):
     # Load the image
@@ -99,8 +101,11 @@ def process_folder(input_folder, output_folder):
                 print(f"Annotation file not found for {filename}")
 
 if __name__ == "__main__":
-    input_folder = 'C:/Users/saulj/captures1'
-    output_folder = 'C:/Users/saulj/captures_cropped-large'
+    if len(sys.argv) != 3:
+        print("Usage: python rotations_large.py <input_directory> <output_directory>")
+        sys.exit(1)
+
+    input_directory = sys.argv[1]
+    output_directory = sys.argv[2]
     
-    # Process the folder
-    process_folder(input_folder, output_folder)
+    process_folder(input_directory, output_directory)
