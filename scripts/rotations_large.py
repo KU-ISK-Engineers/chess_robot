@@ -4,7 +4,7 @@ import math
 from PIL import Image
 import sys
 
-def crop_image_by_annotation(image_path, annotation, output_folder):
+def crop_image_by_annotation(image_path, annotation, output_folder, angle_step):
     # Load the image
     image = Image.open(image_path).convert("L")  # Ensure image is in grayscale (L mode)
     image_width, image_height = image.size
@@ -32,7 +32,7 @@ def crop_image_by_annotation(image_path, annotation, output_folder):
         large_cropped_image = image.crop((x1, y1, x2, y2))
         
         # Create rotated copies of the larger cropped image
-        for angle in range(0, 360):
+        for angle in range(0, 360, angle_step):
             rotated_image = large_cropped_image.rotate(angle, expand=True)
             
             # Calculate the mean of annotation width and height
@@ -77,7 +77,7 @@ def crop_image_by_annotation(image_path, annotation, output_folder):
     except ValueError as e:
         print(f"Error processing {image_path}: {e}")
 
-def process_folder(input_folder, output_folder):
+def process_folder(input_folder, output_folder, angle_step):
     # Create output folder if it doesn't exist
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
@@ -96,16 +96,17 @@ def process_folder(input_folder, output_folder):
                     annotation = tuple(annotation_str.split())
                 
                 # Crop the image and save
-                crop_image_by_annotation(image_path, annotation, output_folder)
+                crop_image_by_annotation(image_path, annotation, output_folder, angle_step)
             else:
                 print(f"Annotation file not found for {filename}")
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: python rotations_large.py <input_directory> <output_directory>")
+    if len(sys.argv) != 4:
+        print("Usage: python rotations_large.py <input_directory> <output_directory> <angle>")
         sys.exit(1)
 
     input_directory = sys.argv[1]
     output_directory = sys.argv[2]
+    angle_step = sys.argv[3]
     
-    process_folder(input_directory, output_directory)
+    process_folder(input_directory, output_directory, angle_step)
