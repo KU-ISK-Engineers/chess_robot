@@ -13,9 +13,9 @@ def detect_image(image_path, yolo):
         return
 
     # Resize image for consistent detection performance
-    resized_img = imutils.resize(original_img, width=800)
-    scale_width = resized_img.shape[1] / original_img.shape[1]
-    scale_height = resized_img.shape[0] / original_img.shape[0]
+    # resized_img = imutils.resize(original_img, width=800)
+    # scale_width = resized_img.shape[1] / original_img.shape[1]
+    # scale_height = resized_img.shape[0] / original_img.shape[0]
 
     # Detect objects in the resized image
     bbox, label, conf = yolo.detect_objects(original_img)
@@ -25,10 +25,10 @@ def detect_image(image_path, yolo):
     # Adjust bounding boxes to match the original image dimensions and add labels
     for box, lbl, cf in zip(bbox, label, conf):
         x, y, w, h = box
-        x = int(x / scale_width)
-        y = int(y / scale_height)
-        w = int(w / scale_width)
-        h = int(h / scale_height)
+        # x = int(x / scale_width)
+        # y = int(y / scale_height)
+        # w = int(w / scale_width)
+        # h = int(h / scale_height)
         
         # Draw rectangle for bounding box
         cv2.rectangle(original_img, (x, y), (x + w, y + h), (0, 255, 0), 2)
@@ -52,10 +52,12 @@ def detect_image(image_path, yolo):
 
 if __name__ == "__main__":
     # Initialize YOLO object detector
-    weights = "chess3-weights/yolov4-tiny-custom_best.weights"
+    weights = "chess5-weights/yolov4-tiny-custom_best.weights"
     config = "yolov4-tiny-custom.cfg"
     labels = "obj.names"
     yolo = YOLO(weights, config, labels)
+
+    cv2.namedWindow("Detected Objects", cv2.WINDOW_NORMAL)
 
     if len(sys.argv) < 2:
         print("Usage: python script.py <image_directory>")
