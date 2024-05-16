@@ -29,7 +29,7 @@ def setup_camera():
     return camera
 
 def preprocess_image(image):
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
     height, width = image.shape[:2]
     new_width = 800
@@ -59,7 +59,7 @@ def setup_yolo(weights_f):
 def detect(image, yolo):
     bbox, label, conf = yolo.detect_objects(image)
 
-    height, width, _ = image.shape
+    height, width = image.shape
     resize_factor = 416
 
     # Resized bboxes
@@ -82,7 +82,7 @@ def draw_bbox(image, bbox, label, confidence):
             cv2.putText(image, f"{lbl} {cf:.2f}", (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
 def map_bboxes_to_squares(image, bbox, label, confidence):
-    img_height, img_width, _ = image.shape
+    img_height, img_width = image.shape
 
     square_width = img_width // 8
     square_height = img_height // 8

@@ -11,8 +11,6 @@ def detect_image(image_path, yolo):
     if original_img is None:
         print("Error: Image could not be read. Check the file path.")
         return
-    
-    original_img = cv2.merge([original_img, original_img, original_img])
 
     # Resize image for consistent detection performance
     resized_img = imutils.resize(original_img, width=800)
@@ -20,7 +18,7 @@ def detect_image(image_path, yolo):
     scale_height = resized_img.shape[0] / original_img.shape[0]
 
     # Detect objects in the resized image
-    bbox, label, conf = yolo.detect_objects(resized_img)
+    bbox, label, conf = yolo.detect_objects(original_img)
 
     print(bbox, label, conf)
 
@@ -54,7 +52,7 @@ def detect_image(image_path, yolo):
 
 if __name__ == "__main__":
     # Initialize YOLO object detector
-    weights = "chess2-weights/yolov4-tiny-custom_best.weights"
+    weights = "chess3-weights/yolov4-tiny-custom_best.weights"
     config = "yolov4-tiny-custom.cfg"
     labels = "obj.names"
     yolo = YOLO(weights, config, labels)
