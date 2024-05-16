@@ -34,7 +34,7 @@ def main():
     camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
     cv2.namedWindow("Camera View", cv2.WINDOW_NORMAL)
 
-    weights = "chess2-weights/yolov4-tiny-custom_best.weights"
+    weights = "chess3-weights/yolov4-tiny-custom_3000.weights"
     config = "yolov4-tiny-custom.cfg"
     labels = "obj.names"
     yolo = YOLO(weights, config, labels)
@@ -48,15 +48,15 @@ def main():
                     image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
                     # Convert the grayscale image to a 3-channel grayscale image
-                    image_3_channel = cv2.merge([image, image, image])
+                    # image_3_channel = cv2.merge([image, image, image])
 
                     # Keep a copy of the original for drawing
-                    original = image_3_channel.copy()
+                    original = image.copy()
 
                     #image = resize_with_aspectratio(image, width=416)  # Resize maintaining aspect ratio
                     #original = image.copy()  # Keep a copy of the original for drawing
 
-                    bbox, label, conf = yolo.detect_objects(image_3_channel)
+                    bbox, label, conf = yolo.detect_objects(image)
 
                     print(bbox, label, conf)
 
