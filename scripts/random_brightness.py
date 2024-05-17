@@ -43,7 +43,7 @@ def process_image(img_path, output_directory, brightness_probability):
 
     # Precompile the transformation
     transform = A.Compose([
-        A.RandomBrightnessContrast(brightness_limit=(-0.2, 0.2), contrast_limit=(-0.2, 0.2), p=brightness_probability)
+        A.RandomBrightnessContrast(brightness_limit=(-0.1, 0.2), contrast_limit=(-0.1, 0.2), p=brightness_probability)
     ])
     
     augmented_image, augmented_bboxes = augment_image(image, bboxes, class_labels, transform)
