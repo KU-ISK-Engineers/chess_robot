@@ -1,19 +1,8 @@
 import sys
 import cv2
 from pypylon import pylon
-from cvlib.object_detection import YOLO
-
-def test():
-    original = image.copy()  # Keep a copy of the original for drawing
-
-    bbox, label, conf = yolo.detect_objects(image)
-
-    # Manual bounding box drawing for debugging
-    for box, lbl, cf in zip(bbox, label, conf):
-        if cf > 0.5:  # Filter out low confidence detections
-            x, y, w, h = box
-            cv2.rectangle(original, (x, y), (x+w, y+h), (0, 255, 0), 2)
-            cv2.putText(original, f"{lbl} {cf:.2f}", (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+import numpy as np
+import os
 
 def setup_camera():
     camera = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateFirstDevice())
@@ -29,14 +18,7 @@ def setup_camera():
     return camera
 
 def preprocess_image(image):
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-    height, width = image.shape[:2]
-    new_width = 800
-    new_height = int((new_width / width) * height)
-    image = cv2.resize(image, (new_width, new_height))
-
-    return image
+    return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
 def setup_points(file_path):
     with open(file_path, 'r') as file:
@@ -46,63 +28,62 @@ def setup_points(file_path):
     return points
 
 def crop_image(image, points):
+    return image
     y_min, y_max, x_min, x_max = points
     cropped_image = image[y_min:y_max, x_min:x_max]
     return cropped_image
 
-def setup_yolo(weights_f):
-    config = "yolov4-tiny-custom.cfg"
-    labels = "obj.names"
-    yolo = YOLO(weights_f, config, labels)
-    return yolo
+def detect_objects(image, net, output_layers):
+    blob = cv2.dnn.blobFromImage(image, 1/255.0, (416, 416), swapRB=True, crop=False)
+    net.setInput(blob)
+    detections = net.forward(output_layers)
 
-def detect(image, yolo):
-    bbox, label, conf = yolo.detect_objects(image)
+    bbox = []
+    label = []
+    conf = []
 
-    height, width = image.shape
-    resize_factor = 416
+    h, w = image.shape[:2]
 
-    # Resized bboxes
-    for i in range(len(bbox)):
-        x1, y1, x2, y2 = bbox[i]
-        x1 = int(x1 * width / resize_factor)
-        y1 = int(y1 * height / resize_factor)
-        x2 = int(x2 * width / resize_factor)
-        y2 = int(y2 * height / resize_factor)
-        bbox[i] = [x1, y1, x2, y2]
+    for output in detections:
+        for detection in output:
+            scores = detection[5:]
+            class_id = int(scores.argmax())
+            confidence = scores[class_id]
+            if confidence > 0.5:
+                box = detection[0:4] * [w, h, w, h]
+                (centerX, centerY, width, height) = box.astype("int")
+
+                x = int(centerX - (width / 2))
+                y = int(centerY - (height / 2))
+
+                bbox.append([x, y, int(width), int(height)])
+                label.append(class_id)
+                conf.append(float(confidence))
 
     return bbox, label, conf
 
-def draw_bbox(image, bbox, label, confidence):
-    for box, lbl, cf in zip(bbox, label, confidence):
-        if cf > 0.5:  # Filter out low confidence detections
-            x1, y1, x2, y2 = box
-
-            cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            cv2.putText(image, f"{lbl} {cf:.2f}", (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-
 def map_bboxes_to_squares(image, bbox, label, confidence):
-    img_height, img_width = image.shape
+    img_height, img_width = image.shape[:2]
 
     square_width = img_width // 8
     square_height = img_height // 8
-    
+
     mapped_squares = []
-    
+
     for box, lbl, cf in zip(bbox, label, confidence):
         if cf > 0.5:
-            x1, y1, x2, y2 = box
+            x1, y1, x2, y2 = box[0], box[1], box[0] + box[2], box[1] + box[3]
             center_x = (x1 + x2) // 2
             center_y = (y1 + y2) // 2
-            
+
             col = center_x // square_width
             row = center_y // square_height
-            
+
             mapped_squares.append((row, col, lbl, cf))
-    
+
     return mapped_squares
 
-def map_label_to_char(lbl):
+def map_label_to_char(lbl, labels):
     label_to_char = {
         "black-bishop": "b",
         "black-king": "k",
@@ -117,61 +98,78 @@ def map_label_to_char(lbl):
         "white-queen": "Q",
         "white-rook": "R"
     }
-    
-    return label_to_char.get(lbl, "?")  
 
-def annotate_squares(image, mapped_squares):
-    # Define the number of rows and columns in the chessboard
+    label_name = labels[lbl]
+    return label_to_char.get(label_name, "?")
+
+def annotate_squares(image, mapped_squares, bbox, label, conf, labels):
     rows = 8
     cols = 8
 
-    # Calculate the width and height of each square
     square_width = image.shape[1] // cols
     square_height = image.shape[0] // rows
 
-    # Draw the annotations and squares on the image
     for row in range(rows):
         for col in range(cols):
-            # Calculate the top-left and bottom-right corners of the current square
             top_left = (col * square_width, row * square_height)
             bottom_right = ((col + 1) * square_width, (row + 1) * square_height)
 
-            # Draw the square using a rectangle
             cv2.rectangle(image, top_left, bottom_right, (0, 255, 0), 2)  # Green color, 2 px thickness
 
-    # Draw the pieces on their corresponding squares
     for (row, col, lbl, _) in mapped_squares:
-        piece_letter = map_label_to_char(lbl)
+        piece_letter = map_label_to_char(lbl, labels)
 
-        # Calculate the center for placing text
         center_x = col * square_width + square_width // 2
         center_y = row * square_height + square_height // 2
 
-        # Draw the piece letter on the image
-        cv2.putText(image, piece_letter, (center_x - 10, center_y + 10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)  
+        cv2.putText(image, piece_letter, (center_x - 10, center_y + 10), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+
+        for (box, lbl, cf) in zip(bbox, label, conf):
+            if cf > 0.5:
+                x, y, w, h = box
+                label_text = f"{labels[lbl]}: {cf:.2f}"
+                cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                cv2.putText(image, label_text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
 
     return image
 
-def main(camera, yolo, points):
+def main(camera, points):
+    config_path = "yolov4-tiny.cfg"
+    weights_path = "yolov4-tiny.weights"
+    labels_path = "obj.names"
+
+    # Check if files exist
+    if not os.path.isfile(config_path):
+        print(f"Error: {config_path} does not exist.")
+        sys.exit(1)
+    if not os.path.isfile(weights_path):
+        print(f"Error: {weights_path} does not exist.")
+        sys.exit(1)
+    if not os.path.isfile(labels_path):
+        print(f"Error: {labels_path} does not exist.")
+        sys.exit(1)
+
     try:
+        net = cv2.dnn.readNetFromDarknet(config_path, weights_path)
+        with open(labels_path, "r") as f:
+            labels = f.read().strip().split("\n")
+        layer_names = net.getLayerNames()
+        output_layers = [layer_names[i - 1] for i in net.getUnconnectedOutLayers()]
+
         while camera.IsGrabbing():
             grab_result = camera.RetrieveResult(5000, pylon.TimeoutHandling_ThrowException)
             if grab_result.GrabSucceeded():
                 image = grab_result.Array
-                image = preprocess_image(image)
                 image = crop_image(image, points)
+                image = preprocess_image(image)
 
-                bbox, label, conf = detect(image, yolo)
-                #draw_bbox(image, bbox, label, conf)
+                bbox, label, conf = detect_objects(image, net, output_layers)
 
-                #print(bbox)
 
-                
 
-                mapped_squares = map_bboxes_to_squares(image, bbox, label, conf)                
-                #print(mapped_squares)
-                image = annotate_squares(image, mapped_squares)
-
+                mapped_squares = map_bboxes_to_squares(image, bbox, label, conf)
+                image = annotate_squares(image, mapped_squares, bbox, label, conf, labels)
+                cv2.namedWindow('Camera View', cv2.WINDOW_NORMAL)
                 cv2.imshow('Camera View', image)
 
                 if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -187,7 +185,6 @@ if __name__ == "__main__":
         sys.exit(1)
 
     camera = setup_camera()
-    yolo = setup_yolo(sys.argv[1])
     points = setup_points(sys.argv[2])
 
-    main(camera, yolo, points)
+    main(camera, points)

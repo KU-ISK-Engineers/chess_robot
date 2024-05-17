@@ -19,8 +19,6 @@ def main(output_dir):
     
     camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
 
-    cv2.namedWindow("Camera View", cv2.WINDOW_NORMAL)  # Create a window for display
-
     try:
         while True:
             grab_result = camera.RetrieveResult(5000, pylon.TimeoutHandling_ThrowException)
@@ -33,6 +31,7 @@ def main(output_dir):
                 image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
                 # Display the resulting frame
+                cv2.namedWindow("Camera View", cv2.WINDOW_NORMAL)  # Create a window for display
                 cv2.imshow('Camera View', image)
                 
                 grab_result.Release()

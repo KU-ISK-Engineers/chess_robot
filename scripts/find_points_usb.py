@@ -1,19 +1,17 @@
 from pypylon import pylon
 import cv2
-import argparse
-import sys
 
 OUT_F_POINTS = "points.txt"
 OUT_F_CROPPED = "cropped.png"
 OUT_F_ANNOTATED = "annotated.png"
 
 # Global variables to store selected points
+cropping = False
 point1 = None
 point2 = None
-cropping = False
 
-def click_and_crop(event, x, y, flags, param):
-    global point1, point2, cropping
+def click_and_crop(image, points, event, x, y, flags, param):
+    global cropping, point1, point2
 
     if event == cv2.EVENT_LBUTTONDOWN:
         point1 = (x, y)
@@ -26,8 +24,6 @@ def click_and_crop(event, x, y, flags, param):
         # Draw a rectangle around the selected region
         cv2.rectangle(image, point1, point2, (0, 255, 0), 2)
         cv2.imshow("image", image)
-
-import cv2
 
 def annotate_squares(image):
     # Define the number of rows and columns in the chessboard
@@ -57,105 +53,87 @@ def annotate_squares(image):
 
     return image
 
-def main(args):
-    if args.device is not None:
-        camera = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateFirstDevice())
-        camera.Open()
+def setup_camera():
+    camera = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateFirstDevice())
+    camera.Open()
 
-        # Set auto exposure mode to continuous
-        camera.ExposureAuto.SetValue('Continuous')
-        
-        # Set camera parameters
-        camera.AcquisitionMode.SetValue("Continuous")
-        
-        # Set frame rate to 15 fps
-        camera.AcquisitionFrameRateEnable.SetValue(True)
-        
-        # Set pixel format to RGB
-        camera.PixelFormat.SetValue("RGB8")
-        
-        camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
+    camera.AcquisitionFrameRateEnable.SetValue(True)
+    camera.AcquisitionFrameRate.SetValue(5)
+    camera.ExposureAuto.SetValue('Continuous')
+    camera.AcquisitionMode.SetValue("Continuous")
+    camera.PixelFormat.SetValue("RGB8")
+    camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
 
+    return camera
+
+def preprocess_image(image):
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    return image
+
+def main():
+    camera = setup_camera()
+
+    while True:
         grab_result = camera.RetrieveResult(5000, pylon.TimeoutHandling_ThrowException)
 
-        if grab_result.GrabSucceeded():
-            # Convert the grabbed frame to OpenCV format
-            image1 = grab_result.Array
-            
-            # Convert the RGB image to BGR
-            image1 = cv2.cvtColor(image1, cv2.COLOR_RGB2BGR)
-            
-        
-        
+        if not grab_result.GrabSucceeded():
+            continue
+
+        # Convert the grabbed frame to OpenCV format
+        image = grab_result.Array
+        image = preprocess_image(image)
         grab_result.Release()
-        frame = image1
-        # if not ret:
-        #     print("Failed to capture from the specified device.", file=sys.stderr)
-        #     return
-    elif args.image is not None:
-        frame = cv2.imread(args.image)
-    else:
-        print("Please specify either --device or --image.")
-        return
 
-    # Readjust size
-    height, width = frame.shape[:2]
-    new_width = 800
-    new_height = int((new_width / width) * height)
-    frame = cv2.resize(frame, (new_width, new_height))
+        clone = image.copy()
 
-    global image, point1, point2
-    image = frame
-    clone = image.copy()
+        global point1, point2
 
-    cv2.namedWindow("image")
-    cv2.setMouseCallback("image", click_and_crop)
+        def crop(event, x, y, flags, param):
+            return click_and_crop(image, (point1, point2), event, x, y, flags, param)
 
-    while True:
-        cv2.imshow("image", image)
-        key = cv2.waitKey(1) & 0xFF
+        cv2.namedWindow("image", cv2.WINDOW_NORMAL)
+        cv2.setMouseCallback("image", crop)
 
-        if key == ord("r"):
-            image = clone.copy()
-            point1 = None
-            point2 = None
-        elif key == ord("c"):
-            if point1 and point2:
-                # Calculate top-left and bottom-right points of the bounding box
-                x_min = min(point1[0], point2[0])
-                y_min = min(point1[1], point2[1])
-                x_max = max(point1[0], point2[0])
-                y_max = max(point1[1], point2[1])
-                break
-            else:
-                print("No region selected.")
+        while True:
+            cv2.imshow("image", image)
+            key = cv2.waitKey(1) & 0xFF
 
-    # Crop the image
-    cropped_image = clone[y_min:y_max, x_min:x_max]
-    cv2.imwrite(OUT_F_CROPPED, cropped_image)
+            if key == ord("r"):
+                image = clone.copy()
+                point1 = None
+                point2 = None
+            elif key == ord("c"):
+                if point1 and point2:
+                    # Calculate top-left and bottom-right points of the bounding box
+                    x_min = min(point1[0], point2[0])
+                    y_min = min(point1[1], point2[1])
+                    x_max = max(point1[0], point2[0])
+                    y_max = max(point1[1], point2[1])
+                    break
+                else:
+                    print("No region selected.")
 
-    # Save data
-    with open(OUT_F_POINTS, 'w') as f:
-        print(y_min, y_max, x_min, x_max, file=f)
-        print(y_min, y_max, x_min, x_max)
+        if point1 and point2:
+            # Crop the image
+            cropped_image = clone[y_min:y_max, x_min:x_max]
+            cv2.imwrite(OUT_F_CROPPED, cropped_image)
 
-    annotated_image = annotate_squares(cropped_image)
-    cv2.imwrite(OUT_F_ANNOTATED, annotated_image)
+            # Save data
+            with open(OUT_F_POINTS, 'w') as f:
+                print(y_min, y_max, x_min, x_max, file=f)
+                print(y_min, y_max, x_min, x_max)
 
-    while True:
-        cv2.imshow('Annotated Image', annotated_image)
-        key = cv2.waitKey(1) & 0xFF
-        if key == ord("q"):
-            break
+            annotated_image = annotate_squares(cropped_image)
+            cv2.imwrite(OUT_F_ANNOTATED, annotated_image)
 
+            while True:
+                cv2.namedWindow('Annotated Image', cv2.WINDOW_NORMAL)
+                cv2.imshow('Annotated Image', annotated_image)
+                key = cv2.waitKey(1) & 0xFF
+                if key == ord("q"):
+                    break
 
-    cv2.waitKey(0)
-
-    cv2.destroyAllWindows()
+        cv2.destroyAllWindows()
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Crop an image interactively.')
-    parser.add_argument('--device', type=str, help='Device index to capture from (e.g., 0 for webcam)')
-    parser.add_argument('--image', type=str, help='Path to an image file')
-    args = parser.parse_args()
-    main(args)
+    main()
