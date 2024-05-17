@@ -1,4 +1,4 @@
-import RPi.GPIO as GPIO
+import lgpio
 import logging
 import time
 
@@ -7,19 +7,20 @@ PIN_IN_RESP = 15
 
 def setup_gpio():
     logging.info("Setting up GPIO pins...")
-    GPIO.setmode(GPIO.BOARD)
-    GPIO.setup(PIN_IN_RESP, GPIO.IN)
+    h = lgpio.gpiochip_open(0)
+    lgpio.gpio_claim_input(h, PIN_IN_RESP)
+    return h
 
-def cleanup_gpio():
+def cleanup_gpio(h):
     logging.info("Cleaning up GPIO pins...")
-    GPIO.cleanup()
+    lgpio.gpiochip_close(h)
 
-def detect_pin_state():
+def detect_pin_state(h):
     logging.info(f"Monitoring pin {PIN_IN_RESP} for state changes...")
     try:
         while True:
-            pin_state = GPIO.input(PIN_IN_RESP)
-            if pin_state == GPIO.HIGH:
+            pin_state = lgpio.gpio_read(h, PIN_IN_RESP)
+            if pin_state == 1:
                 logging.info("Pin 15 is HIGH")
             else:
                 logging.info("Pin 15 is LOW")
@@ -29,11 +30,11 @@ def detect_pin_state():
 
 def main():
     logging.basicConfig(level=logging.INFO)
-    setup_gpio()
+    h = setup_gpio()
     try:
-        detect_pin_state()
+        detect_pin_state(h)
     finally:
-        cleanup_gpio()
+        cleanup_gpio(h)
 
 if __name__ == "__main__":
     main()
