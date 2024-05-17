@@ -2,6 +2,7 @@ import RPi.GPIO as GPIO
 import logging
 import time
 import chess
+import random
 
 # Pin configuration
 PIN_OUT_DAT = 11
@@ -104,3 +105,27 @@ def issue_command(command):
 def is_available():
     signal = GPIO.input(PIN_IN_RESP)
     return signal == GPIO.HIGH
+
+def main():
+    try:
+        setup_communication()
+        
+        from_square = random.randint(0, 63)
+        to_square = random.randint(0, 63)
+        command = form_command(from_square, to_square)
+        
+        logging.info(f"Generated command from square {from_square} to square {to_square} (command: {command})")
+        
+        result = issue_command(command)
+        if result == RESPONSE_SUCCESS:
+            logging.info("Command successfully sent and acknowledged.")
+        else:
+            logging.error("Failed to receive acknowledgement for the command.")
+    except Exception as e:
+        logging.error(f"An error occurred: {e}")
+    finally:
+        close_communication()
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    main()
