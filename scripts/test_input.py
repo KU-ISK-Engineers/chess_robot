@@ -1,46 +1,51 @@
-import gpiod
-import logging
+import RPi.GPIO as GPIO
 import time
+import logging
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 
-def setup_gpio(chip_name='gpiochip0'):
+def setup_gpio():
     logging.info("Setting up GPIO pins...")
-    chip = gpiod.Chip(chip_name)
-    return chip
+    GPIO.setmode(GPIO.BOARD)  # Use BCM GPIO numbering
+    GPIO.setwarnings(False)
 
-def cleanup_gpio(chip):
+def cleanup_gpio():
     logging.info("Cleaning up GPIO pins...")
-    chip.close()
+    GPIO.cleanup()
 
-def detect_pin_states(chip, lines):
+def detect_pin_states(pins):
     logging.info("Monitoring all GPIO pins for state changes...")
     try:
         while True:
-            for line in lines:
+            for pin in pins:
                 try:
-                    pin_state = line.get_value()
-                    state_str = "HIGH" if pin_state == 1 else "LOW"
-                    logging.info(f"Pin {line.offset} is {state_str}")
+                    pin_state = GPIO.input(pin)
+                    state_str = "HIGH" if pin_state == GPIO.HIGH else "LOW"
+                    logging.info(f"Pin {pin} is {state_str}")
                 except Exception as e:
-                    logging.warning(f"Failed to read pin {line.offset}: {e}")
+                    logging.warning(f"Failed to read pin {pin}: {e}")
             time.sleep(1)  # Adjust the sleep time as needed for your application
     except KeyboardInterrupt:
         logging.info("Monitoring stopped by user")
 
 def main():
-    chip = setup_gpio()
+    setup_gpio()
     # Define a list of pins to monitor. Update the list based on your specific Raspberry Pi model.
     pins = list(range(2, 28))  # GPIO2 to GPIO27
+
     try:
-        # Claim all pins as inputs
-        lines = [chip.get_line(pin) for pin in pins]
-        for line in lines:
-            line.request(consumer='gpio_monitor', type=gpiod.LINE_REQ_DIR_IN)
-        detect_pin_states(chip, lines)
+        # Set all pins as inputs
+        for pin in pins:
+            try:
+                GPIO.setup(pin, GPIO.IN)
+                logging.info(f"Successfully set pin {pin} as input")
+            except Exception as e:
+                logging.error(f"Failed to set pin {pin} as input: {e}")
+
+        detect_pin_states(pins)
     finally:
-        cleanup_gpio(chip)
+        cleanup_gpio()
 
 if __name__ == "__main__":
     main()
