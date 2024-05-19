@@ -1,71 +1,167 @@
-import cv2
-import numpy as np
-import imutils
 import sys
-from cvlib.object_detection import YOLO
+import cv2
 import os
 
-def detect_image(image_path, yolo):
-    # Load the image from the file path
-    original_img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-    if original_img is None:
-        print("Error: Image could not be read. Check the file path.")
-        return
+def preprocess_image(image):
+    return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-    # Resize image for consistent detection performance
-    # resized_img = imutils.resize(original_img, width=800)
-    # scale_width = resized_img.shape[1] / original_img.shape[1]
-    # scale_height = resized_img.shape[0] / original_img.shape[0]
+def detect_objects(image, net, output_layers):
+    blob = cv2.dnn.blobFromImage(image, 1/255.0, (416, 416), swapRB=False, crop=False)
+    net.setInput(blob)
+    detections = net.forward(output_layers)
 
-    # Detect objects in the resized image
-    bbox, label, conf = yolo.detect_objects(original_img)
+    bbox = []
+    label = []
+    conf = []
 
-    print(bbox, label, conf)
+    h, w = image.shape[:2]
 
-    # Adjust bounding boxes to match the original image dimensions and add labels
-    for box, lbl, cf in zip(bbox, label, conf):
-        x, y, w, h = box
-        # x = int(x / scale_width)
-        # y = int(y / scale_height)
-        # w = int(w / scale_width)
-        # h = int(h / scale_height)
-        
-        # Draw rectangle for bounding box
-        cv2.rectangle(original_img, (x, y), (x + w, y + h), (0, 255, 0), 2)
+    for output in detections:
+        for detection in output:
+            scores = detection[5:]
+            class_id = int(scores.argmax())
+            confidence = scores[class_id]
+            if confidence > 0.5:
+                box = detection[0:4] * [w, h, w, h]
+                (centerX, centerY, width, height) = box.astype("int")
 
-        # Prepare text with label and confidence level
-        text = f"{lbl}: {cf*100:.2f}%"
-        
-        # Calculate text width & height to background rectangle
-        (text_width, text_height), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
-        
-        # Set rectangle background for text
-        cv2.rectangle(original_img, (x, y - 20), (x + text_width, y), (0, 255, 0), -1)
-        
-        # Put text above rectangle
-        cv2.putText(original_img, text, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 1)
+                x = int(centerX - (width / 2))
+                y = int(centerY - (height / 2))
 
-    # Display the resulting image
-    cv2.imshow("Detected Objects", original_img)
-    cv2.waitKey(0)  # Wait for a key press to exit
+                bbox.append([x, y, int(width), int(height)])
+                label.append(class_id)
+                conf.append(float(confidence))
+
+    return bbox, label, conf
+
+def map_bboxes_to_squares(image, bbox, label, confidence):
+    img_height, img_width = image.shape[:2]
+
+    square_width = img_width // 8
+    square_height = img_height // 8
+
+    mapped_squares = []
+
+    for box, lbl, cf in zip(bbox, label, confidence):
+        if cf > 0.5:
+            x1, y1, x2, y2 = box[0], box[1], box[0] + box[2], box[1] + box[3]
+            center_x = (x1 + x2) // 2
+            center_y = (y1 + y2) // 2
+
+            col = center_x // square_width
+            row = center_y // square_height
+
+            mapped_squares.append((row, col, lbl, cf))
+
+    return mapped_squares
+
+def map_label_to_char(lbl, labels):
+    label_to_char = {
+        "black-bishop": "b",
+        "black-king": "k",
+        "black-knight": "n",
+        "black-pawn": "p",
+        "black-queen": "q",
+        "black-rook": "r",
+        "white-bishop": "B",
+        "white-king": "K",
+        "white-knight": "N",
+        "white-pawn": "P",
+        "white-queen": "Q",
+        "white-rook": "R"
+    }
+
+    label_name = labels[lbl]
+    return label_to_char.get(label_name, "?")
+
+def annotate_squares(image, mapped_squares, bbox, label, conf, labels):
+    rows = 8
+    cols = 8
+
+    square_width = image.shape[1] // cols
+    square_height = image.shape[0] // rows
+
+    for row in range(rows):
+        for col in range(cols):
+            top_left = (col * square_width, row * square_height)
+            bottom_right = ((col + 1) * square_width, (row + 1) * square_height)
+
+            cv2.rectangle(image, top_left, bottom_right, (0, 255, 0), 2)  # Green color, 2 px thickness
+
+    for (row, col, lbl, _) in mapped_squares:
+        piece_letter = map_label_to_char(lbl, labels)
+
+        center_x = col * square_width + square_width // 2
+        center_y = row * square_height + square_height // 2
+
+        cv2.putText(image, piece_letter, (center_x - 10, center_y + 10), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+
+    for (box, lbl, cf) in zip(bbox, label, conf):
+        if cf > 0.5:
+            x, y, w, h = box
+            label_text = f"{labels[lbl]}: {cf:.2f}"
+            print(label_text)
+            cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            cv2.putText(image, label_text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+
+    return image
+
+def process_image(image_path, net, output_layers, labels):
+    image = cv2.imread(image_path)
+    if image is None:
+        raise FileNotFoundError(f"Image not found at the specified path: {image_path}")
+
+    image = preprocess_image(image)
+
+    bbox, label, conf = detect_objects(image, net, output_layers)
+
+    mapped_squares = map_bboxes_to_squares(image, bbox, label, conf)
+    image = annotate_squares(image, mapped_squares, bbox, label, conf, labels)
+    
+    cv2.namedWindow('Processed Image', cv2.WINDOW_NORMAL)
+    cv2.imshow('Processed Image', image)
+    while True:
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
     cv2.destroyAllWindows()
 
-if __name__ == "__main__":
-    # Initialize YOLO object detector
-    weights = "chess5-weights/yolov4-tiny-custom_best.weights"
-    config = "yolov4-tiny-custom.cfg"
-    labels = "obj.names"
-    yolo = YOLO(weights, config, labels)
-
-    cv2.namedWindow("Detected Objects", cv2.WINDOW_NORMAL)
-
-    if len(sys.argv) < 2:
-        print("Usage: python script.py <image_directory>")
+def main(folder_path, config_path, weights_path, labels_path):
+    # Check if files exist
+    if not os.path.isfile(config_path):
+        print(f"Error: {config_path} does not exist.")
+        sys.exit(1)
+    if not os.path.isfile(weights_path):
+        print(f"Error: {weights_path} does not exist.")
+        sys.exit(1)
+    if not os.path.isfile(labels_path):
+        print(f"Error: {labels_path} does not exist.")
         sys.exit(1)
 
-    for filename in os.listdir(sys.argv[1]):
-        if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif')):
-            image_path = os.path.join(sys.argv[1], filename)
-            print(image_path)
-            detect_image(image_path, yolo)
+    try:
+        net = cv2.dnn.readNetFromDarknet(config_path, weights_path)
+        with open(labels_path, "r") as f:
+            labels = f.read().strip().split("\n")
+        layer_names = net.getLayerNames()
+        output_layers = [layer_names[i - 1] for i in net.getUnconnectedOutLayers()]
 
+        for filename in os.listdir(folder_path):
+            if filename.lower().endswith(('.png', '.jpg', '.jpeg')):
+                image_path = os.path.join(folder_path, filename)
+                print(f"Processing {image_path}")
+                process_image(image_path, net, output_layers, labels)
+
+    except Exception as e:
+        print("An error occurred:", str(e))
+        sys.exit(1)
+
+if __name__ == "__main__":
+    if len(sys.argv) != 5:
+        print("Usage: python identify_images_in_folder.py path_to_folder path_to_config path_to_weights path_to_labels")
+        sys.exit(1)
+
+    folder_path = sys.argv[1]
+    config_path = sys.argv[2]
+    weights_path = sys.argv[3]
+    labels_path = sys.argv[4]
+    main(folder_path, config_path, weights_path, labels_path)
