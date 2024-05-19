@@ -29,7 +29,12 @@ combined_command="$bin_square_from$bin_square_to"
 for (( i=0; i<${#combined_command}; i++ )); do
   bit=${combined_command:$i:1}
   
-  pinctrl set 17 $bit
+  if [ "$bit" -eq "0" ]; then
+    pinctrl set 17 dl
+  else
+    pinctrl set 17 dh
+  fi
+  
   pinctrl set 27 dh
   sleep 0.05
   pinctrl set 27 dl
