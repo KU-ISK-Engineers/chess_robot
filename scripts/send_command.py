@@ -2,11 +2,11 @@ import sys
 import time
 import subprocess
 
-def to_binary(num):
-    """Convert a signed integer to a 32-bit binary representation."""
+def to_8bit_binary(num):
+    """Convert a signed integer to an 8-bit binary representation."""
     if num < 0:
-        num = (1 << 32) + num
-    return format(num, '032b')
+        num = (1 << 8) + num
+    return format(num, '08b')
 
 def pinctrl_set(pin, value):
     """Set the pin value using pinctrl."""
@@ -20,8 +20,8 @@ def main():
     square_from = int(sys.argv[1])
     square_to = int(sys.argv[2])
 
-    bin_square_from = to_binary(square_from)
-    bin_square_to = to_binary(square_to)
+    bin_square_from = to_8bit_binary(square_from)
+    bin_square_to = to_8bit_binary(square_to)
 
     combined_command = bin_square_from + bin_square_to
 
