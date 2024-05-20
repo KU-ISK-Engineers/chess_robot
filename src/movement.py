@@ -2,7 +2,7 @@ import logging
 from typing import List, Optional
 import chess
 
-from . import communication
+from . import communication_ssh as communication
 
 # TODO: Make moves in consideration of what the camera is showing (/ whatever the fuck the user is currently doing)
 

@@ -1,118 +1,161 @@
 import cv2
 import chess
+import numpy as np
 
-BBOX_RESIZE_FACTOR = 416
+def detect(image, model):
+    # For greyscale
+    image = cv2.merge([image, image, image])
 
-def detect(image, yolo):
-    bbox, label, conf = yolo.detect_objects(image)
-
-    height, width, _ = image.shape
-
-    # Resized bboxes
-    for i in range(len(bbox)):
-        x1, y1, x2, y2 = bbox[i]
-        x1 = int(x1 * width / BBOX_RESIZE_FACTOR)
-        y1 = int(y1 * height / BBOX_RESIZE_FACTOR)
-        x2 = int(x2 * width / BBOX_RESIZE_FACTOR)
-        y2 = int(y2 * height / BBOX_RESIZE_FACTOR)
-        bbox[i] = [x1, y1, x2, y2]
-
+    results = model(image)
+    bbox = []
+    label = []
+    conf = []
+    for result in results:
+        boxes = result.boxes.xyxy.cpu().numpy()
+        confs = result.boxes.conf.cpu().numpy()
+        class_ids = result.boxes.cls.cpu().numpy().astype(int)
+        labels = result.names
+        for box, cf, class_id in zip(boxes, confs, class_ids):
+            if cf > 0.5:
+                x1, y1, x2, y2 = map(int, box)
+                bbox.append([x1, y1, x2 - x1, y2 - y1])
+                label.append(class_id)
+                conf.append(cf)
     return bbox, label, conf
 
-def draw_bbox(image, bbox, label, confidence):
+def annotate_bboxes(image, bbox, label, confidence, labels):
     for box, lbl, cf in zip(bbox, label, confidence):
         if cf > 0.5:  # Filter out low confidence detections
-            x1, y1, x2, y2 = box
+            x, y, w, h = box
+            label_text = f"{labels[lbl]}: {cf:.2f}"
+            cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            cv2.putText(image, label_text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
 
-            cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            cv2.putText(image, f"{lbl} {cf:.2f}", (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-
-
-def bbox_to_board(image, bbox, label, confidence):
-    img_height, img_width, _ = image.shape
-
+def map_bboxes_to_squares(image, bbox, label, confidence):
+    img_height, img_width = image.shape[:2]
     square_width = img_width // 8
     square_height = img_height // 8
-    
-    board = chess.Board(empty=True)
-    
+    mapped_squares = []
+
+    # Calculate the maximum possible distance (half the diagonal of the square)
+    max_distance = np.sqrt((square_width / 2) ** 2 + (square_height / 2) ** 2)
+
     for box, lbl, cf in zip(bbox, label, confidence):
-        if cf > 0.5 and lbl in label_to_piece:
-            x1, y1, x2, y2 = box
-            center_x = (x1 + x2) // 2
-            center_y = (y1 + y2) // 2
-            
-            col = center_x // square_width
-            row = center_y // square_height
+        if cf > 0.5:
+            x1, y1, x2, y2 = box[0], box[1], box[0] + box[2], box[1] + box[3]
+            center_x = (x1 + x2) / 2
+            center_y = (y1 + y2) / 2
+            col = int(center_x // square_width)
+            row = int(center_y // square_height)
 
-            # Calculate chessboard square
-            square_index = (7 - row) * 8 + col
-            piece_type, color = label_to_piece[lbl]
-            piece = chess.Piece(piece_type, color)
-            
-            # Place the piece on the board
-            board.set_piece_at(square_index, piece)
-    
-    return board
+            center_col = col * square_width + square_width / 2
+            center_row = row * square_height + square_height / 2
 
+            distance = np.sqrt((center_x - center_col) ** 2 + (center_y - center_row) ** 2)
+            distance_percentage = 1 - (distance / max_distance)
 
-def label_to_piece(label):
-    pieces = {
-        "black-bishop": (chess.BISHOP, chess.BLACK),
-        "black-king": (chess.KING, chess.BLACK),
-        "black-knight": (chess.KNIGHT, chess.BLACK),
-        "black-pawn": (chess.PAWN, chess.BLACK),
-        "black-queen": (chess.QUEEN, chess.BLACK),
-        "black-rook": (chess.ROOK, chess.BLACK),
-        "white-bishop": (chess.BISHOP, chess.WHITE),
-        "white-king": (chess.KING, chess.WHITE),
-        "white-knight": (chess.KNIGHT, chess.WHITE),
-        "white-pawn": (chess.PAWN, chess.WHITE),
-        "white-queen": (chess.QUEEN, chess.WHITE),
-        "white-rook": (chess.ROOK, chess.WHITE)
-    }
+            if distance_percentage >= 0.6:
+                mapped_squares.append((row, col, lbl, cf, distance_percentage))
+    return mapped_squares
 
-    return pieces[label]
-
-def annotate_squares(image, board):
-    # Define the number of rows and columns in the chessboard
+# Annotate squares on the chessboard
+def annotate_squares(image, mapped_squares, bbox, label, conf, labels):
     rows = 8
     cols = 8
-
-    # Calculate the width and height of each square
     square_width = image.shape[1] // cols
     square_height = image.shape[0] // rows
 
-    # Draw the squares on the image
     for row in range(rows):
         for col in range(cols):
-            # Calculate the top-left and bottom-right corners of the current square
             top_left = (col * square_width, row * square_height)
             bottom_right = ((col + 1) * square_width, (row + 1) * square_height)
+            cv2.rectangle(image, top_left, bottom_right, (0, 255, 0), 2)
 
-            # Draw the square using a rectangle
-            cv2.rectangle(image, top_left, bottom_right, (0, 255, 0), 2)  # Green color, 2 px thickness
-
-    # Draw the pieces on their corresponding squares
-    for square in chess.SQUARES:
-        piece = board.piece_at(square)
-        if piece:
-            piece_letter = piece.symbol()
-
-            # Calculate the row and column from the square index
-            row = 7 - (square // 8)
-            col = square % 8
-
-            # Calculate the center for placing text
-            center_x = col * square_width + square_width // 2
-            center_y = row * square_height + square_height // 2
-
-            # Draw the piece letter on the image
-            cv2.putText(image, piece_letter, (center_x - 10, center_y + 10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)  # Yellow color, 2 px thickness
+    # piece letters
+    for (row, col, lbl, _, dist) in mapped_squares:
+        piece_letter = map_label_to_char(lbl, labels)
+        center_x = col * square_width + square_width // 2
+        center_y = row * square_height + square_height // 2
+        cv2.putText(image, piece_letter + f"({dist:.2f})", (center_x - 10, center_y + 10), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
 
     return image
 
-def image_to_board(image, yolo):
-    bbox, label, conf = detect(image, yolo)
-    return bbox_to_board(image, bbox, label, conf)
 
+# Map label to chess notation character
+def map_label_to_char(lbl, labels):
+    label_to_char = {
+        "black-bishop": "b",
+        "black-king": "k",
+        "black-knight": "n",
+        "black-pawn": "p",
+        "black-queen": "q",
+        "black-rook": "r",
+        "white-bishop": "B",
+        "white-king": "K",
+        "white-knight": "N",
+        "white-pawn": "P",
+        "white-queen": "Q",
+        "white-rook": "R"
+    }
+    label_name = labels[lbl]
+    return label_to_char.get(label_name, "?")
+
+def detect_squares(image, model):
+    bbox, label, conf = detect(image, model)
+    mapped_squares = map_bboxes_to_squares(image, bbox, label, conf)
+    return mapped_squares
+
+
+# ----------------- TESTING -----------------
+
+from pypylon import pylon
+from ultralytics import YOLO
+import sys
+
+def setup_camera():
+    camera = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateFirstDevice())
+    camera.Open()
+
+    camera.AcquisitionFrameRateEnable.SetValue(True)
+    camera.AcquisitionFrameRate.SetValue(5)
+    camera.ExposureAuto.SetValue('Continuous')
+    camera.AcquisitionMode.SetValue("Continuous")
+    camera.PixelFormat.SetValue("RGB8")
+    camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
+
+    return camera
+
+def preprocess_image(image):
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    return image
+
+def main():
+    if len(sys.argv) != 2:
+        print("Usage: python script.py path_to_model")
+        sys.exit(1)
+
+    model = YOLO(sys.argv[1])
+    camera = setup_camera()
+
+    while camera.IsGrabbing():
+        grab_result = camera.RetrieveResult(5000, pylon.TimeoutHandling_ThrowException)
+        if grab_result.GrabSucceeded():
+            image = grab_result.Array
+            grab_result.Release()
+            image = preprocess_image(image)
+
+            # For yolo model
+            bbox, label, conf = detect(image, model)
+            annotate_bboxes(image, bbox, label, conf, model.names)
+
+            mapped_squares = map_bboxes_to_squares(image, bbox, label, conf)
+            annotate_squares(image, mapped_squares, bbox, label, conf, model.names)
+
+            cv2.namedWindow('Processed Image', cv2.WINDOW_NORMAL)
+            cv2.imshow('Processed Image', image)
+
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+if __name__ == "__main__":
+    main()

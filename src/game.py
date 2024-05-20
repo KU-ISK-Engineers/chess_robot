@@ -4,7 +4,7 @@ from typing import Optional
 
 from .camera import CameraDetection
 from . import movement
-from .communication import RESPONSE_SUCCESS
+from .communication_ssh import RESPONSE_SUCCESS
 
 PLAYER = 0
 ROBOT = 1
