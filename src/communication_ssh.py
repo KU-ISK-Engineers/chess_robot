@@ -5,6 +5,8 @@ import chess
 import random
 from pprint import pprint
 
+# TODO: Modify script to include distances between 
+
 # Constants for SSH connection
 IP_ADDRESS = "192.168.0.248"  # Replace with your Raspberry Pi's IP address
 USERNAME = "user"             # Replace with your Raspberry Pi's username
