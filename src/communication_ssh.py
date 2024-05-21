@@ -60,7 +60,11 @@ def generate_pinctrl_commands():
     ]
     return commands
 
-def form_command(from_square, to_square):
+def form_command(from_square, to_square, perspective = chess.WHITE):
+    if perspective == chess.BLACK:
+        from_square = 63 - from_square
+        to_square = 63 - to_square
+
     command = (from_square << 8) | to_square
     return command
 

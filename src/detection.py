@@ -2,12 +2,17 @@ import cv2
 from typing import List
 from collections import namedtuple
 from ultralytics import YOLO
+import chess
+import chess.svg
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 # Minimum piece detection confidence threshold
 THRESHOLD_CONFIDENCE = 0.5
 
 # Minimum distance percentage of the piece from the square center
-THRESHOLD_DISTANCE = 0.3
+THRESHOLD_DISTANCE = 0.7
 
 MappedSquare = namedtuple('MappedSquare', ['row', 'col', 'dx_percent', 'dy_percent', 'label', 'confidence'])
 
@@ -120,9 +125,108 @@ def detect_squares(image, model) -> List[MappedSquare]:
     mapped_squares = map_bboxes_to_squares(image, bbox, label, conf)
     return mapped_squares
 
+def map_squares_to_board(mapped_squares, perspective:chess.Color = chess.WHITE):
+    board = chess.Board.empty()
+    percentages = np.zeros((8, 8, 2))  # Initialize a 2D array for dx_percent and dy_percent
+    
+    for square in mapped_squares:
+        # Map perspective
+        if perspective == chess.WHITE:
+            row = square.row
+            col = 7 - square.col
+        else:
+            row = 7 - square.row
+            col = square.col
+
+        piece_label = square.label
+        
+        # Calculate chessboard square index
+        square_index = (7 - row) * 8 + col
+        piece_type, color = label_to_piece(piece_label)
+        piece = chess.Piece(piece_type, color)
+        
+        # Place the piece on the board
+        board.set_piece_at(square_index, piece)
+        
+        # Store the distance percentages
+        percentages[row, col] = (square.dx_percent, square.dy_percent)
+    
+    return board, percentages
+
+def label_to_piece(label):
+    piece_mapping = {
+        "black-bishop": (chess.BISHOP, chess.BLACK),
+        "black-king": (chess.KING, chess.BLACK),
+        "black-knight": (chess.KNIGHT, chess.BLACK),
+        "black-pawn": (chess.PAWN, chess.BLACK),
+        "black-queen": (chess.QUEEN, chess.BLACK),
+        "black-rook": (chess.ROOK, chess.BLACK),
+        "white-bishop": (chess.BISHOP, chess.WHITE),
+        "white-king": (chess.KING, chess.WHITE),
+        "white-knight": (chess.KNIGHT, chess.WHITE),
+        "white-pawn": (chess.PAWN, chess.WHITE),
+        "white-queen": (chess.QUEEN, chess.WHITE),
+        "white-rook": (chess.ROOK, chess.WHITE)
+    }
+    return piece_mapping.get(label)
+
+def visualise_chessboard(board, percentages, gui=False):
+    if gui:
+        fig, ax = plt.subplots()
+
+        # Draw the chessboard
+        for row in range(8):
+            for col in range(8):
+                color = 'white' if (row + col) % 2 == 0 else 'gray'
+                rect = patches.Rectangle((col, row), 1, 1, linewidth=1, edgecolor='black', facecolor=color)
+                ax.add_patch(rect)
+                
+                # Add square labels in the bottom-right corner
+                square_label = f"{chr(97 + col)}{8 - row}"
+                ax.text(col + 0.9, row + 0.1, square_label, fontsize=10, ha='right', va='bottom', color='blue')
+
+        # Draw the pieces
+        for square in chess.SQUARES:
+            piece = board.piece_at(square)
+            if piece:
+                col = square % 8
+                row = 7 - (square // 8)
+                piece_symbol = piece.symbol()
+                ax.text(col + 0.5, row + 0.5, piece_symbol, fontsize=24, ha='center', va='center', color='black')
+        
+        # Annotate the percentages
+        for row in range(8):
+            for col in range(8):
+                dx_percent, dy_percent = percentages[row, col]
+                if dx_percent != 0 or dy_percent != 0:
+                    text = f"({dx_percent:.2f}, {dy_percent:.2f})"
+                    ax.text(col + 0.5, row + 0.9, text, fontsize=8, ha='center', va='center', color='red')
+
+        # Set limits and remove axes
+        ax.set_xlim(0, 8)
+        ax.set_ylim(0, 8)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_aspect('equal')
+
+        plt.show()
+
+    # Generate the SVG image of the board
+    svg_image = chess.svg.board(board=board)
+
+    # Save the SVG image to a file
+    with open('chess_board.svg', 'w') as f:
+        f.write(svg_image)
+
+def image_to_board(image, model, perspective: chess.Color = chess.WHITE):
+    bbox, label, conf = detect_greyscale(image, model)
+    mapped_squares = map_bboxes_to_squares(image, bbox, label, conf)
+    board, percentages = map_squares_to_board(mapped_squares, perspective)
+    return board, percentages
+
 # ----------------- TESTING -----------------
 
-#from pypylon import pylon
+from pypylon import pylon
 from ultralytics import YOLO
 import sys
 
@@ -144,11 +248,12 @@ def preprocess_image(image):
     return image
 
 def main():
-    if len(sys.argv) != 2:
-        print("Usage: python script.py path_to_model")
-        sys.exit(1)
+    # if len(sys.argv) != 2:
+    #     print("Usage: python script.py path_to_model")
+    #     sys.exit(1)
+    #model = YOLO(sys.argv[1])
 
-    model = YOLO(sys.argv[1])
+    model = YOLO("../training/chess_200.pt")
     camera = setup_camera()
 
     while camera.IsGrabbing():
@@ -159,16 +264,22 @@ def main():
             image = preprocess_image(image)
 
             # For yolo model
-            bbox, labels, confs = detect_greyscale(image, model)
-            annotate_bboxes(image, bbox, labels, confs)
+            bbox, label, conf = detect_greyscale(image, model)
+            annotate_bboxes(image, bbox, label, conf)
 
-            mapped_squares = map_bboxes_to_squares(image, bbox, labels, confs)
-            annotate_squares(image, mapped_squares, bbox, labels, confs)
+            mapped_squares = map_bboxes_to_squares(image, bbox, label, conf)
+            annotate_squares(image, mapped_squares)
 
             cv2.namedWindow('Processed Image', cv2.WINDOW_NORMAL)
             cv2.imshow('Processed Image', image)
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+            # board, percentages = image_to_board(image, model)
+            # visualise_chessboard(board, percentages)
+            # print(board)
+            # print(percentages)
+
+
+        if cv2.waitKey() & 0xFF == ord('q'):
             break
 
 def image_main():
@@ -191,5 +302,7 @@ def image_main():
     cv2.imshow('Processed Image', image)
     cv2.waitKey()
 
+    # board, percentages = map_squares_to_board(mapped_squares)
+
 if __name__ == "__main__":
-    image_main()
+    main()

@@ -1,10 +1,10 @@
 import logging
 from typing import List, Optional
 import chess
-
-from . import communication_ssh as communication
-
-# TODO: Make moves in consideration of what the camera is showing (/ whatever the fuck the user is currently doing)
+# import communication_ssh as communication
+import communication
+# from communication_ssh import setup_communication, issue_command, form_command
+import time
 
 def make_move(board: chess.Board, move: chess.Move):
     """Assume move is valid, call before pushing move in memory!"""
@@ -157,89 +157,88 @@ def identify_move(prev_board: chess.Board, current_board: chess.Board) -> Option
             else: # New piece or captured
                 appeared.append(square)
 
-    # Handle castling
-    if len(dissapeared) == 2 and len(appeared) == 2:
+    # Validate normal and promotion moves
+    if len(dissapeared) == 1 and len(appeared) == 1:
+        move = chess.Move(dissapeared[0], appeared[0])
+
+        # En passant exception
+        if _is_en_passant(prev_board, move):
+            return None
+            
+        # Castling exception
+        if prev_board.is_castling(move):
+            return None
+        
+        # Check for promotion
+        if prev_board.piece_at(move.from_square).piece_type == chess.PAWN and chess.square_rank(move.to_square) in (0,7):
+            promotion_piece_type = current_board.piece_at(move.to_square).piece_type
+            move.promotion = promotion_piece_type
+
+        return move
+
+    # Validate castling move
+    elif len(dissapeared) == 2 and len(appeared) == 2:
         if prev_board.piece_at(dissapeared[0]).piece_type != chess.KING:
             dissapeared = [dissapeared[1], dissapeared[0]]
         if current_board.piece_at(appeared[0]).piece_type != chess.KING:
             appeared = [appeared[1], appeared[0]]
 
-        king_move_from, king_move_to = dissapeared[0], appeared[0]
-        rook_move_from, rook_move_to = dissapeared[1], appeared[1]
+        king_move = chess.Move(dissapeared[0], appeared[0])
+        rook_move = chess.Move(dissapeared[1], appeared[1])
 
-        expected_king = prev_board.piece_at(king_move_from)
-        if expected_king.piece_type != chess.KING:
-            return None # No king in origin square
+        if not prev_board.is_castling(king_move):
+            return None 
         
-        if current_board.piece_at(king_move_to) != expected_king:
-            return None # Not correct piece where king is supposed to be
-        
-        expected_rook = chess.Piece(chess.ROOK, expected_king.color)
-        if prev_board.piece_at(rook_move_from) != expected_rook or current_board.piece_at(rook_move_to) != expected_rook:
-            return None # Rooks aren't in respective squares
+        # Rook checks
+        color = prev_board.piece_at(king_move.from_square).color
+        expected_rook = chess.Piece(chess.ROOK, color)
 
-        dx = chess.square_file(king_move_from) - chess.square_file(king_move_to)
-        if abs(dx) != 2:
-            return None # King wrong movement
-        if chess.square_file(king_move_from) != 4:
-            return None # King wrong place for castling
+        if prev_board.piece_at(rook_move.from_square) != expected_rook or current_board.piece_at(rook_move.to_square) != expected_rook:
+            return None
         
-        king_move = chess.Move(king_move_from, king_move_to)
-        rook_move = _castle_rook_move(prev_board, king_move)
-        if rook_move.from_square != rook_move_from or rook_move.to_square != rook_move_to:
-            return None # Rook invalid move
-        
+        if rook_move != _castle_rook_move(prev_board, king_move):
+            return None
+
         return king_move
 
-    # Handle en passant
+    # Validate en passant
     elif len(dissapeared) == 2 and len(appeared) == 1:
-        pawn_move_from = None
-        en_passant_square = None
         pawn_move_to = appeared[0]
-
-        if prev_board.piece_at(dissapeared[0]).piece_type == chess.PAWN and chess.square_file(dissapeared[0]) != chess.square_file(pawn_move_to):
+        if prev_board.is_en_passant(chess.Move(dissapeared[0], pawn_move_to)):
             pawn_move_from = dissapeared[0]
             en_passant_square = dissapeared[1]
-        else:
+        elif prev_board.is_en_passant(chess.Move(dissapeared[1], pawn_move_to)):
             pawn_move_from = dissapeared[1]
             en_passant_square = dissapeared[0]
+        else:
+            return None
 
         move = chess.Move(pawn_move_from, pawn_move_to)
-        if not prev_board.is_en_passant(move):
-            return None
+
         if _en_passant_captured(move) != en_passant_square:
             return None
-        return move
-
-    # Handle normal and promotion moves
-    elif len(dissapeared) == 1 and len(appeared) == 1:
-        move = chess.Move(dissapeared[0], appeared[0])
-        
-        # Check for promotion
-        if prev_board.piece_at(dissapeared[0]).piece_type == chess.PAWN and chess.square_rank(appeared[0]) in (0,7):
-            promotion_piece_type = current_board.piece_at(appeared[0]).piece_type
-            move = chess.Move(dissapeared[0], appeared[0], promotion=promotion_piece_type)
 
         return move
 
     return None
  
-def _castle_rook_move(board: chess.Board, move: chess.Move) -> chess.Move:
-    """Assume move is castling"""
-
-    is_kingside = board.is_kingside_castling(move)
-
-    king_from_square = move.from_square
-    king_to_square = move.to_square
-
-    if is_kingside:
-        rook_from = king_from_square + 3  # Rook starts 3 squares right from the king
-        rook_to = king_to_square - 1 # Rook ends up 1 square left from the king's destination
-    else:
-        rook_from = king_from_square - 4  # Rook starts 4 squares left from the king
-        rook_to = king_to_square + 1 # Rook ends up 1 square right from the king's destination
-
-    return chess.Move(rook_from, rook_to)
+def _castle_rook_move(board: chess.Board, king_move: chess.Move) -> chess.Move:
+    if board.piece_at(king_move.from_square).piece_type == chess.KING and board.is_castling(king_move):
+        rook_from, rook_to = None, None
+        if king_move.to_square == chess.G1:  # White kingside
+            rook_from = chess.H1
+            rook_to = chess.F1
+        elif king_move.to_square == chess.C1:  # White queenside
+            rook_from = chess.A1
+            rook_to = chess.D1
+        elif king_move.to_square == chess.G8:  # Black kingside
+            rook_from = chess.H8
+            rook_to = chess.F8
+        elif king_move.to_square == chess.C8:  # Black queenside
+            rook_from = chess.A8
+            rook_to = chess.D8
+        return chess.Move(rook_from, rook_to)
+    return None
 
 
 def _en_passant_captured(move: chess.Move):
@@ -247,3 +246,97 @@ def _en_passant_captured(move: chess.Move):
     direction = -8 if (move.to_square > move.from_square) else 8
     captured_square = move.to_square + direction
     return captured_square
+
+def _is_en_passant(board, move):
+    if board.piece_at(move.from_square).piece_type == chess.PAWN:
+        if abs(move.from_square - move.to_square) in (7, 9) and not board.piece_at(move.to_square):
+            return True
+    return False
+
+# ---- TESTING ---
+
+import sys
+from camera import CameraDetection
+from ultralytics import YOLO
+from detection import visualise_chessboard
+from pypylon import pylon
+import cv2
+
+def setup_camera():
+    camera = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateFirstDevice())
+    camera.Open()
+
+    camera.AcquisitionFrameRateEnable.SetValue(True)
+    camera.AcquisitionFrameRate.SetValue(5)
+    camera.ExposureAuto.SetValue('Continuous')
+    camera.AcquisitionMode.SetValue("Continuous")
+    camera.PixelFormat.SetValue("RGB8")
+    camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
+
+    return camera
+
+def main():
+    # if len(sys.argv) != 2:
+    #     print("Usage: python script.py path_to_model")
+    #     sys.exit(1)
+
+    # model = YOLO(sys.argv[1])
+    model = YOLO("../training/chess_200.pt")
+
+    camera = setup_camera()
+
+    detection = CameraDetection(camera, model)
+
+    prev_board = chess.Board()
+    print(prev_board)
+
+    communication.setup_communication()
+
+    while True:
+        #image = detection.capture_image()
+        board, percentages = detection.capture_board(perspective=chess.BLACK)
+        print(board)
+
+        visualise_chessboard(board, percentages)
+
+        if prev_board:
+            move = identify_move(prev_board, board)
+
+            if move not in prev_board.legal_moves:
+                pass
+                #print('Illegal move')
+            else:
+                print(move.uci())
+
+                command = communication.form_command(move.from_square, move.to_square, perspective=chess.BLACK)
+                response = communication.issue_command(command)
+
+                if response == communication.RESPONSE_SUCCESS:
+                    print('response Success')
+
+                    visualize_move_with_arrow(prev_board, move, 'move_before.svg')
+
+                    prev_board.push(move)
+
+                    visualize_move_with_arrow(board, move, 'move_after.svg')
+                else:
+                    time.sleep(5)
+
+def visualize_move_with_arrow(board, move, filename):
+    """
+    Visualize a move on the chessboard with an arrow from the starting square to the ending square.
+    
+    :param board: The chess.Board object.
+    :param move_uci: The move in UCI format (e.g., "e2e4").
+    """
+    arrow = (move.from_square, move.to_square)
+    
+    # Display the board with the arrow
+    svg_before = chess.svg.board(board=board, size=400, arrows=[arrow])
+
+    # Save the SVG image to a file
+    with open(filename, 'w') as f:
+        f.write(svg_before)
+
+if __name__ == "__main__":
+    main()
