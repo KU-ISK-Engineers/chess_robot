@@ -65,9 +65,9 @@ def issue_command(command):
             GPIO.output(PIN_OUT_DAT, GPIO.LOW)
 
         GPIO.output(PIN_OUT_CLK, GPIO.HIGH)
-        time.sleep(0.08)
+        time.sleep(0.2)
         GPIO.output(PIN_OUT_CLK, GPIO.LOW)
-        time.sleep(0.08)
+        time.sleep(0.2)
     
     time.sleep(0.1)  # Simulate delay for the response signal check
     
