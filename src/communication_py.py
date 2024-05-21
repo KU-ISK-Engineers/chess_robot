@@ -98,11 +98,11 @@ def issue_command(command):
             line_dat.set_value(0)
 
         line_clk.set_value(1)
-        time.sleep(0.08)
+        time.sleep(0.2)
         line_clk.set_value(0)
-        time.sleep(0.08)
+        time.sleep(0.2)
     
-    time.sleep(0.1)  # Simulate delay for the response signal check
+    time.sleep(0.2)  # Simulate delay for the response signal check
     
     return wait_for_signal()
 
