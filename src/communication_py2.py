@@ -1,4 +1,4 @@
-import gpiod
+import RPi.GPIO as GPIO
 import logging
 import time
 import chess
@@ -34,48 +34,15 @@ OFF_BOARD_PIECES = {
     (chess.PAWN, chess.BLACK): -12,
 }
 
-chip = None
-line_dat = None
-line_clk = None
-line_resp = None
-
-def setup_communication(chip_name='/dev/gpiochip4'):
-    global chip, line_dat, line_clk, line_resp
-    chip = gpiod.Chip(chip_name)
-
-    # Get lines for the pins
-
-    line_dat = chip.get_line(PIN_OUT_DAT)
-    line_clk = chip.get_line(PIN_OUT_CLK)
-    line_resp = chip.get_line(PIN_IN_RESP)
-
-    # Configure the lines
-    line_dat.request(consumer="gpioout", type=gpiod.LINE_REQ_DIR_OUT)
-    line_clk.request(consumer="gpioout", type=gpiod.LINE_REQ_DIR_OUT)
-    line_resp.request(consumer="gpioin", type=gpiod.LINE_REQ_DIR_IN)
+def setup_communication():
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setup(PIN_OUT_DAT, GPIO.OUT)
+    GPIO.setup(PIN_OUT_CLK, GPIO.OUT)
+    GPIO.setup(PIN_IN_RESP, GPIO.IN)
 
 def close_communication():
-    global chip, line_dat, line_clk, line_resp
-
-    # Release the lines
-    if line_dat is not None:
-        line_dat.release()
-    if line_clk is not None:
-        line_clk.release()
-    if line_resp is not None:
-        line_resp.release()
-
-    # Close the chip
-    if chip is not None:
-        chip.close()
-
-    # Reset the variables to None
-    line_dat = None
-    line_clk = None
-    line_resp = None
-    chip = None
-
-    logging.info("GPIO lines and chip have been released.")
+    GPIO.cleanup()
+    logging.info("GPIO pins have been released.")
 
 def off_board_square(piece_type, color):
     return OFF_BOARD_PIECES[(piece_type, color)]
@@ -93,13 +60,13 @@ def issue_command(command):
         bit_value = (command >> (15 - bit)) & 1
 
         if bit_value:
-            line_dat.set_value(1)
+            GPIO.output(PIN_OUT_DAT, GPIO.HIGH)
         else:
-            line_dat.set_value(0)
+            GPIO.output(PIN_OUT_DAT, GPIO.LOW)
 
-        line_clk.set_value(1)
+        GPIO.output(PIN_OUT_CLK, GPIO.HIGH)
         time.sleep(0.08)
-        line_clk.set_value(0)
+        GPIO.output(PIN_OUT_CLK, GPIO.LOW)
         time.sleep(0.08)
     
     time.sleep(0.1)  # Simulate delay for the response signal check
@@ -109,8 +76,8 @@ def issue_command(command):
 def wait_for_signal():
     start_time = time.time()
     while (time.time() - start_time) < DELAY_TIMEOUT_MAX_S:
-        signal = line_resp.get_value()
-        if signal == 0:  # Assuming low signal indicates a response
+        signal = GPIO.input(PIN_IN_RESP)
+        if signal == GPIO.LOW:  # Assuming low signal indicates a response
             elapsed = time.time() - start_time
             if elapsed < DELAY_TIMEOUT_MIN_S:
                 logging.info(f"Response too quick (<{DELAY_TIMEOUT_MIN_S}s)!")
@@ -139,6 +106,8 @@ def main():
         logging.info("Command issued successfully")
     else:
         logging.error("Command failed")
+
+    close_communication()
 
 if __name__ == '__main__':
     main()
