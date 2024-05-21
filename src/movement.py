@@ -6,7 +6,7 @@ import communication
 # from communication_ssh import setup_communication, issue_command, form_command
 import time
 
-def make_move(board: chess.Board, move: chess.Move):
+def make_move(board: chess.Board, move: chess.Move, perspective: chess.Color):
     """Assume move is valid, call before pushing move in memory!"""
 
     move_san = board.san(move)
@@ -18,8 +18,8 @@ def make_move(board: chess.Board, move: chess.Move):
     if board.is_castling(move):
         rook_move = _castle_rook_move(board, move)
 
-        response = move_piece(from_square, to_square, response)
-        response = move_piece(rook_move.from_square, rook_move.to_square, response)
+        response = move_piece(from_square, to_square, perspective, response)
+        response = move_piece(rook_move.from_square, rook_move.to_square, perspective, response)
     else:  # Regular moves
         if board.is_capture(move):
             captured_piece = board.piece_at(to_square)
@@ -27,7 +27,7 @@ def make_move(board: chess.Board, move: chess.Move):
             off_board_place = communication.off_board_square(piece_type, color)
 
             # Remove captured piece
-            response = move_piece(to_square, off_board_place, response)
+            response = move_piece(to_square, off_board_place, perspective, response)
         if board.is_en_passant(move):
             captured_square = _en_passant_captured(move)
             captured_piece = board.piece_at(captured_square)
@@ -35,7 +35,7 @@ def make_move(board: chess.Board, move: chess.Move):
             off_board_place = communication.off_board_square(piece_type, color)
 
             # Remove captured piece
-            response = move_piece(captured_square, off_board_place, response)
+            response = move_piece(captured_square, off_board_place, perspective, response)
         if move.promotion:
             removed_piece = board.piece_at(move.from_square)
             piece_type, color = (removed_piece.piece_type, removed_piece.color)
@@ -45,12 +45,12 @@ def make_move(board: chess.Board, move: chess.Move):
             )
 
             # Remove original piece off the board
-            response = move_piece(from_square, off_board_place_removed, response)
+            response = move_piece(from_square, off_board_place_removed, perspective, response)
 
             # Set new piece to be moved
             from_square = off_board_place_promoted
 
-        response = move_piece(from_square, to_square, response)
+        response = move_piece(from_square, to_square, perspective, response)
 
     if response == communication.RESPONSE_TIMEOUT:
         logging.warning(f"Move {move_san} timed out!")
@@ -60,7 +60,7 @@ def make_move(board: chess.Board, move: chess.Move):
     return response
 
 
-def move_piece(from_square: chess.Square, to_square: chess.Square, prev_response=communication.RESPONSE_SUCCESS):
+def move_piece(from_square: chess.Square, to_square: chess.Square, perspective: chess.Color, prev_response=communication.RESPONSE_SUCCESS):
     """Assume move is valid, call before pushing move in memory!"""
     if prev_response == communication.RESPONSE_SUCCESS:
         from_str = chess.square_name(from_square)
@@ -68,13 +68,13 @@ def move_piece(from_square: chess.Square, to_square: chess.Square, prev_response
         logging.info(f"Making move: {from_str} -> {to_str}")
 
         return communication.issue_command(
-            communication.form_command(from_square, to_square)
+            communication.form_command(from_square, to_square, perspective)
         )
     else:
         return prev_response
 
 
-def reset_board(current_board: chess.Board, expected_board: Optional[chess.Board] = None) -> int:
+def reset_board(current_board: chess.Board, expected_board: Optional[chess.Board] = None, perspective: chess.Color = chess.WHITE) -> int:
     """
     Assumes expected_board can be created using current pieces.
     """
@@ -98,13 +98,15 @@ def reset_board(current_board: chess.Board, expected_board: Optional[chess.Board
     empty_squares = [square for square in chess.SQUARES if square not in current_positions and square not in expected_positions]
 
     # Helper function to move a piece and update mappings
-    def move_piece_and_update(start_square, end_square):
-        if move_piece(start_square, end_square) == communication.RESPONSE_TIMEOUT:
+    def move_piece_and_update(start_square: chess.Square, end_square: chess.Square) -> int:
+        if move_piece(start_square, end_square, perspective) == communication.RESPONSE_TIMEOUT:
             return communication.RESPONSE_TIMEOUT
+
         piece = current_board.remove_piece_at(start_square)
         current_board.set_piece_at(end_square, piece)
         current_positions.pop(start_square)
         current_positions[end_square] = piece
+
         if end_square in expected_positions and expected_positions[end_square] == piece:
             expected_positions.pop(end_square)
         return communication.RESPONSE_SUCCESS
