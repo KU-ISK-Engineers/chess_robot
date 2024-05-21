@@ -18,33 +18,16 @@ DELAY_WAIT_S = 0.1
 RESPONSE_TIMEOUT = 0
 RESPONSE_SUCCESS = 1
 
-# Off the board pieces identifiers
-OFF_BOARD_PIECES = {
-    (chess.ROOK, chess.WHITE): -1,
-    (chess.BISHOP, chess.WHITE): -2,
-    (chess.KNIGHT, chess.WHITE): -3,
-    (chess.QUEEN, chess.WHITE): -4,
-    (chess.KING, chess.WHITE): -5,
-    (chess.PAWN, chess.WHITE): -6,
-    (chess.ROOK, chess.BLACK): -7,
-    (chess.BISHOP, chess.BLACK): -8,
-    (chess.KNIGHT, chess.BLACK): -9,
-    (chess.QUEEN, chess.BLACK): -10,
-    (chess.KING, chess.BLACK): -11,
-    (chess.PAWN, chess.BLACK): -12,
-}
-
 chip = None
 line_dat = None
 line_clk = None
 line_resp = None
 
-def setup_communication(chip_name='/dev/gpiochip4'):
+def setup_communication(chip_name: str = '/dev/gpiochip4'):
     global chip, line_dat, line_clk, line_resp
     chip = gpiod.Chip(chip_name)
 
     # Get lines for the pins
-
     line_dat = chip.get_line(PIN_OUT_DAT)
     line_clk = chip.get_line(PIN_OUT_CLK)
     line_resp = chip.get_line(PIN_IN_RESP)
@@ -77,18 +60,70 @@ def close_communication():
 
     logging.info("GPIO lines and chip have been released.")
 
-def off_board_square(piece_type, color):
-    return OFF_BOARD_PIECES[(piece_type, color)]
+def off_board_square(piece_type: chess.PieceType, color: chess.Color, perspective: chess.Color = chess.WHITE) -> int:
+    pieces_white_perspective = {
+        (chess.ROOK, chess.WHITE): -1,
+        (chess.BISHOP, chess.WHITE): -2,
+        (chess.KNIGHT, chess.WHITE): -3,
+        (chess.QUEEN, chess.WHITE): -4,
+        (chess.KING, chess.WHITE): -5,
+        (chess.PAWN, chess.WHITE): -6,
 
-def form_command(from_square, to_square, perspective=chess.WHITE):
+        (chess.ROOK, chess.BLACK): -7,
+        (chess.BISHOP, chess.BLACK): -8,
+        (chess.KNIGHT, chess.BLACK): -9,
+        (chess.QUEEN, chess.BLACK): -10,
+        (chess.KING, chess.BLACK): -11,
+        (chess.PAWN, chess.BLACK): -12,
+    }
+
+    piece_value = pieces_white_perspective[(piece_type, color)]
     if perspective == chess.BLACK:
-        from_square = 63 - from_square
-        to_square = 63 - to_square
+        # Flip groups
+        if piece_value >= -6:
+            piece_value -= 6
+        else:
+            piece_value += 6
 
-    command = (from_square << 8) | to_square
+    return piece_value
+
+# def form_command(from_square: chess.Square, to_square: chess.Square, perspective: chess.Color = chess.WHITE):
+#     if perspective == chess.BLACK:
+#         # Invert square coordinate
+#         from_square = 63 - from_square
+#         to_square = 63 - to_square
+
+#     command = (from_square << 8) | to_square
+#     return command
+
+# TODO: Test this function, test with negative values
+def form_command(from_square: chess.Square, to_square: chess.Square, offset_x: float = 0, offset_y: float = 0, perspective: chess.Color = chess.WHITE) -> int:
+    # Convert to decimal percentage
+    offset_x = int(max(min(offset_x * 100, 100), -100))
+    offset_y = int(max(min(offset_y * 100, 100), -100))
+
+    if perspective == chess.BLACK:
+        # Invert square coordinates
+        if 0 >= from_square <= 63:
+            from_square = 63 - from_square
+        if 0 >= to_square <= 63:
+            to_square = 63 - to_square
+
+        # Invert percentages to reflect direction of perspective
+        offset_x = -offset_x
+        offset_y = -offset_y
+
+    # handle two's compliment
+    from_square &= 0xFF
+    to_square &= 0xFF
+    offset_x &= 0xFF
+    offset_y &= 0xFF
+
+    # Form command to be sent over
+    command = (from_square << 24) | (offset_x << 16) | (offset_y << 8) | to_square
     return command
 
-def issue_command(command):
+def issue_command(command: int) -> int:
     for bit in range(16):
         bit_value = (command >> (15 - bit)) & 1
 

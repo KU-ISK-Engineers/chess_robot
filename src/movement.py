@@ -1,16 +1,14 @@
 import logging
 from typing import List, Optional
 import chess
-# import communication_ssh as communication
 import communication
-# from communication_ssh import setup_communication, issue_command, form_command
 import time
+from board import BoardWithOffsets
 
-def make_move(board: chess.Board, move: chess.Move, perspective: chess.Color):
-    """Assume move is valid, call before pushing move in memory!"""
-
-    move_san = board.san(move)
-    logging.info(f"Making move {move_san}...")
+def reflect_move(board: BoardWithOffsets, move: chess.Move) -> int:
+    """
+    Makes move physically, does not save the move in board
+    """
 
     response = communication.RESPONSE_SUCCESS
     from_square, to_square = (move.from_square, move.to_square)
@@ -18,8 +16,8 @@ def make_move(board: chess.Board, move: chess.Move, perspective: chess.Color):
     if board.is_castling(move):
         rook_move = _castle_rook_move(board, move)
 
-        response = move_piece(from_square, to_square, perspective, response)
-        response = move_piece(rook_move.from_square, rook_move.to_square, perspective, response)
+        response = move_piece(board, from_square, to_square, response)
+        response = move_piece(board, rook_move.from_square, rook_move.to_square, response)
     else:  # Regular moves
         if board.is_capture(move):
             captured_piece = board.piece_at(to_square)
@@ -27,7 +25,7 @@ def make_move(board: chess.Board, move: chess.Move, perspective: chess.Color):
             off_board_place = communication.off_board_square(piece_type, color)
 
             # Remove captured piece
-            response = move_piece(to_square, off_board_place, perspective, response)
+            response = move_piece(board, to_square, off_board_place, response)
         if board.is_en_passant(move):
             captured_square = _en_passant_captured(move)
             captured_piece = board.piece_at(captured_square)
@@ -35,7 +33,7 @@ def make_move(board: chess.Board, move: chess.Move, perspective: chess.Color):
             off_board_place = communication.off_board_square(piece_type, color)
 
             # Remove captured piece
-            response = move_piece(captured_square, off_board_place, perspective, response)
+            response = move_piece(board, captured_square, off_board_place, response)
         if move.promotion:
             removed_piece = board.piece_at(move.from_square)
             piece_type, color = (removed_piece.piece_type, removed_piece.color)
@@ -45,42 +43,60 @@ def make_move(board: chess.Board, move: chess.Move, perspective: chess.Color):
             )
 
             # Remove original piece off the board
-            response = move_piece(from_square, off_board_place_removed, perspective, response)
+            response = move_piece(board, from_square, off_board_place_removed, response)
 
             # Set new piece to be moved
             from_square = off_board_place_promoted
 
-        response = move_piece(from_square, to_square, perspective, response)
+        response = move_piece(board, from_square, to_square, response)
 
     if response == communication.RESPONSE_TIMEOUT:
-        logging.warning(f"Move {move_san} timed out!")
+        logging.warning(f"Move {board.san(move)} timed out!")
     else:
-        logging.info(f"Move {move_san} success!")
+        logging.info(f"Move {board.san(move)} success!")
 
     return response
 
-
-def move_piece(from_square: chess.Square, to_square: chess.Square, perspective: chess.Color, prev_response=communication.RESPONSE_SUCCESS):
+# TODO: Test this function
+def move_piece(board: BoardWithOffsets, from_square: chess.Square, to_square: chess.Square, prev_response=communication.RESPONSE_SUCCESS) -> int:
     """Assume move is valid, call before pushing move in memory!"""
     if prev_response == communication.RESPONSE_SUCCESS:
         from_str = chess.square_name(from_square)
         to_str = chess.square_name(to_square)
-        logging.info(f"Making move: {from_str} -> {to_str}")
+        move_str = f"{from_str} -> {to_str}"
+        logging.info(f"Making move: {move_str}")
 
-        return communication.issue_command(
-            communication.form_command(from_square, to_square, perspective)
-        )
+        offset_x, offset_y = board.offset(from_square)
+
+        command = communication.form_command(from_square, to_square, offset_x, offset_y, board.perspective)
+        response = communication.issue_command(command)
+
+        # Update board offsets
+        if 0 >= from_square <= 63:
+            board.set_offset(from_square, 0, 0)
+
+        if 0 >= to_square <= 63:
+            board.set_offset(to_square, 0, 0)
+
+        if response == communication.RESPONSE_SUCCESS:
+            logging.info(f"Move {move_str} success")
+        else:
+            logging.warning(f"Move {move_str} failed!")
+
+        return response
     else:
         return prev_response
 
-
-def reset_board(current_board: chess.Board, expected_board: Optional[chess.Board] = None, perspective: chess.Color = chess.WHITE) -> int:
+# TODO: Check offsets
+def reset_board(board: BoardWithOffsets, expected_board: Optional[chess.Board] = None, perspective: chess.Color = chess.WHITE) -> int:
     """
     Assumes expected_board can be created using current pieces.
     """
 
     if expected_board is None:
         expected_board = chess.Board()
+
+    current_board = board.chess_board
 
     # Create mappings for current and expected piece positions
     current_positions = {square: current_board.piece_at(square) for square in chess.SQUARES if current_board.piece_at(square)}
@@ -104,6 +120,7 @@ def reset_board(current_board: chess.Board, expected_board: Optional[chess.Board
 
         piece = current_board.remove_piece_at(start_square)
         current_board.set_piece_at(end_square, piece)
+
         current_positions.pop(start_square)
         current_positions[end_square] = piece
 

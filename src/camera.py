@@ -39,7 +39,7 @@ class CameraDetection:
         self.image = cropped_image
         return self.image
     
-    def capture_board(self, perspective=chess.WHITE):
+    def capture_board(self, perspective: chess.Color = chess.WHITE):
         image = self.capture_image()
         self.board, self.percentages = image_to_board(image, self.model, perspective)
 
@@ -62,7 +62,7 @@ class CameraDetection:
         return image
 
             
-def crop_image_by_area(image, area):
+def crop_image_by_area(image: cv2.Mat, area) -> cv2.Mat:
     (tl, tr, bl, br) = area
     width_top = np.linalg.norm(tr - tl)
     width_bottom = np.linalg.norm(br - bl)

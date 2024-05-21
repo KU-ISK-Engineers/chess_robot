@@ -1,5 +1,5 @@
 import cv2
-from typing import List
+from typing import List, Tuple
 from collections import namedtuple
 from ultralytics import YOLO
 import chess
@@ -8,15 +8,19 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
+from board import BoardWithOffsets
+
 # Minimum piece detection confidence threshold
 THRESHOLD_CONFIDENCE = 0.5
 
 # Minimum distance percentage of the piece from the square center
 THRESHOLD_DISTANCE = 0.7
 
-MappedSquare = namedtuple('MappedSquare', ['row', 'col', 'dx_percent', 'dy_percent', 'label', 'confidence'])
+MappedSquare = namedtuple('MappedSquare', ['row', 'col', 'dx_offset', 'dy_offset', 'label', 'confidence'])
 
-def detect_greyscale(image, model):
+# --- PIECE DETECTION ---
+
+def detect_greyscale(image: cv2.Mat, model: YOLO):
     # For greyscale
     image = cv2.merge([image, image, image])
 
@@ -40,7 +44,7 @@ def detect_greyscale(image, model):
                 conf.append(cf)
     return bbox, label, conf
 
-def annotate_bboxes(image, bbox, label, confidence):
+def annotate_bboxes(image: cv2.Mat, bbox, label, confidence):
     for box, lbl, cf in zip(bbox, label, confidence):
         x, y, w, h = box
         label_text = f"{lbl}: {cf:.2f}"
@@ -49,7 +53,9 @@ def annotate_bboxes(image, bbox, label, confidence):
 
     return image
 
-def map_bboxes_to_squares(image, bbox, label, confidence) -> List[MappedSquare]:
+# --- MAPPING TO SQUARES ---
+
+def map_bboxes_to_squares(image: cv2.Mat, bbox, label, confidence) -> List[MappedSquare]:
     img_height, img_width = image.shape[:2]
     square_width = img_width // 8
     square_height = img_height // 8
@@ -72,16 +78,16 @@ def map_bboxes_to_squares(image, bbox, label, confidence) -> List[MappedSquare]:
         center_col = col * square_width + square_width // 2
         center_row = row * square_height + square_height // 2
 
-        dx_percent = (center_x - center_col) / max_center_dx
-        dy_percent = (center_y - center_row) / max_center_dy
+        dx_offset = (center_x - center_col) / max_center_dx
+        dy_offset = (center_y - center_row) / max_center_dy
 
         # Filter out pieces too far from the square center
-        if abs(dx_percent) <= THRESHOLD_DISTANCE and abs(dy_percent) <= THRESHOLD_DISTANCE:
-            mapped_squares.append(MappedSquare(row, col, dx_percent, dy_percent, lbl, cf))
+        if abs(dx_offset) <= THRESHOLD_DISTANCE and abs(dy_offset) <= THRESHOLD_DISTANCE:
+            mapped_squares.append(MappedSquare(row, col, dx_offset, dy_offset, lbl, cf))
 
     return mapped_squares
 
-def annotate_squares(image, mapped_squares: List[MappedSquare]):
+def annotate_squares(image: cv2.Mat, mapped_squares: List[MappedSquare]) -> cv2.Mat:
     square_height = image.shape[0] // 8
     square_width = image.shape[1] // 8
 
@@ -98,12 +104,12 @@ def annotate_squares(image, mapped_squares: List[MappedSquare]):
         center_x = square.col * square_width + square_width // 2
         center_y = square.row * square_height + square_height // 2
 
-        text = piece_letter + f"({square.dx_percent:.2f},{square.dy_percent:.2f})"
+        text = piece_letter + f"({square.dx_offset:.2f},{square.dy_offset:.2f})"
         cv2.putText(image, text, (center_x - 10, center_y + 10), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
 
     return image
 
-def label_to_char(label):
+def label_to_char(label: str):
     pieces = {
         "black-bishop": "b",
         "black-king": "k",
@@ -120,14 +126,10 @@ def label_to_char(label):
     }
     return pieces.get(label, "?")
 
-def detect_squares(image, model) -> List[MappedSquare]:
-    bbox, label, conf = detect_greyscale(image, model)
-    mapped_squares = map_bboxes_to_squares(image, bbox, label, conf)
-    return mapped_squares
-
-def map_squares_to_board(mapped_squares, perspective:chess.Color = chess.WHITE):
+# --- MAPPING TO BOARD ---
+def map_squares_to_board(mapped_squares: List[MappedSquare], perspective: chess.Color = chess.WHITE) -> BoardWithOffsets:
     board = chess.Board.empty()
-    percentages = np.zeros((8, 8, 2))  # Initialize a 2D array for dx_percent and dy_percent
+    offsets = np.zeros((8, 8, 2))  
     
     for square in mapped_squares:
         # Map perspective
@@ -141,7 +143,7 @@ def map_squares_to_board(mapped_squares, perspective:chess.Color = chess.WHITE):
         piece_label = square.label
         
         # Calculate chessboard square index
-        square_index = (7 - row) * 8 + col
+        square_index = chess.square(col, row)
         piece_type, color = label_to_piece(piece_label)
         piece = chess.Piece(piece_type, color)
         
@@ -149,11 +151,11 @@ def map_squares_to_board(mapped_squares, perspective:chess.Color = chess.WHITE):
         board.set_piece_at(square_index, piece)
         
         # Store the distance percentages
-        percentages[row, col] = (square.dx_percent, square.dy_percent)
-    
-    return board, percentages
+        offsets[row, col] = (square.dx_offset, square.dy_offset)
 
-def label_to_piece(label):
+    return BoardWithOffsets(board, offsets, perspective)
+
+def label_to_piece(label: str) -> Tuple[chess.Piece, chess.Color]:
     piece_mapping = {
         "black-bishop": (chess.BISHOP, chess.BLACK),
         "black-king": (chess.KING, chess.BLACK),
@@ -170,63 +172,23 @@ def label_to_piece(label):
     }
     return piece_mapping.get(label)
 
-def visualise_chessboard(board, percentages, gui=False):
-    if gui:
-        fig, ax = plt.subplots()
-
-        # Draw the chessboard
-        for row in range(8):
-            for col in range(8):
-                color = 'white' if (row + col) % 2 == 0 else 'gray'
-                rect = patches.Rectangle((col, row), 1, 1, linewidth=1, edgecolor='black', facecolor=color)
-                ax.add_patch(rect)
-                
-                # Add square labels in the bottom-right corner
-                square_label = f"{chr(97 + col)}{8 - row}"
-                ax.text(col + 0.9, row + 0.1, square_label, fontsize=10, ha='right', va='bottom', color='blue')
-
-        # Draw the pieces
-        for square in chess.SQUARES:
-            piece = board.piece_at(square)
-            if piece:
-                col = square % 8
-                row = 7 - (square // 8)
-                piece_symbol = piece.symbol()
-                ax.text(col + 0.5, row + 0.5, piece_symbol, fontsize=24, ha='center', va='center', color='black')
-        
-        # Annotate the percentages
-        for row in range(8):
-            for col in range(8):
-                dx_percent, dy_percent = percentages[row, col]
-                if dx_percent != 0 or dy_percent != 0:
-                    text = f"({dx_percent:.2f}, {dy_percent:.2f})"
-                    ax.text(col + 0.5, row + 0.9, text, fontsize=8, ha='center', va='center', color='red')
-
-        # Set limits and remove axes
-        ax.set_xlim(0, 8)
-        ax.set_ylim(0, 8)
-        ax.set_xticks([])
-        ax.set_yticks([])
-        ax.set_aspect('equal')
-
-        plt.show()
-
+def visualise_chessboard(board: BoardWithOffsets):
     # Generate the SVG image of the board
-    svg_image = chess.svg.board(board=board)
+    svg_image = chess.svg.board(board=board.chess_board)
 
     # Save the SVG image to a file
     with open('chess_board.svg', 'w') as f:
         f.write(svg_image)
 
-def image_to_board(image, model, perspective: chess.Color = chess.WHITE):
+def image_to_board(image: cv2.Mat, model: YOLO, perspective: chess.Color = chess.WHITE) -> BoardWithOffsets:
     bbox, label, conf = detect_greyscale(image, model)
     mapped_squares = map_bboxes_to_squares(image, bbox, label, conf)
-    board, percentages = map_squares_to_board(mapped_squares, perspective)
-    return board, percentages
+    board = map_squares_to_board(mapped_squares, perspective)
+    return board
 
 # ----------------- TESTING -----------------
 
-from pypylon import pylon
+#from pypylon import pylon
 from ultralytics import YOLO
 import sys
 
@@ -293,16 +255,17 @@ def image_main():
 
     # For yolo model
     bbox, label, conf = detect_greyscale(image, model)
-    annotate_bboxes(image, bbox, label, conf)
+    # annotate_bboxes(image, bbox, label, conf)
 
     mapped_squares = map_bboxes_to_squares(image, bbox, label, conf)
-    annotate_squares(image, mapped_squares)
+    # annotate_squares(image, mapped_squares)
 
-    cv2.namedWindow('Processed Image', cv2.WINDOW_NORMAL)
-    cv2.imshow('Processed Image', image)
-    cv2.waitKey()
+    # cv2.namedWindow('Processed Image', cv2.WINDOW_NORMAL)
+    # cv2.imshow('Processed Image', image)
+    # cv2.waitKey()
 
-    # board, percentages = map_squares_to_board(mapped_squares)
+    board = map_squares_to_board(mapped_squares)
+    visualise_chessboard(board)
 
 if __name__ == "__main__":
-    main()
+    image_main()
