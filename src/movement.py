@@ -50,11 +50,6 @@ def reflect_move(board: BoardWithOffsets, move: chess.Move) -> int:
 
         response = move_piece(board, from_square, to_square, response)
 
-    if response == communication.RESPONSE_TIMEOUT:
-        logging.warning(f"Move {board.san(move)} timed out!")
-    else:
-        logging.info(f"Move {board.san(move)} success!")
-
     return response
 
 # TODO: Test this function
