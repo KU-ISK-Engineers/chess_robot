@@ -75,7 +75,7 @@ def play_chess(level):
     # Start a new game
     board = chess.Board()
 
-    player_turn = chess.WHITE if player_color == "white" else chess.BLACK     #player colour input form button
+    player_turn = chess.WHITE if player_color == "white" else chess.BLACK     #player colour input from button
 
     while not board.is_game_over():
         #print(board)
