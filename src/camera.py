@@ -110,7 +110,7 @@ def main():
 
     while True:
         #image = detection.capture_image()
-        board = detection.capture_board()
+        board = detection.capture_board(perspective=chess.BLACK)
         visualise_chessboard(board)
 
         # cv2.namedWindow('image', cv2.WINDOW_NORMAL)
