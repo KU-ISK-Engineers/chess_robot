@@ -46,6 +46,9 @@ class Game:
         self.player = player
 
     def robot_makes_move(self, move: Optional[chess.Move] = None) -> Optional[chess.Move]:
+        new_board = self.detection.capture_board(perspective=self.board)
+        self.board.offsets = new_board.offsets
+
         if move is not None:
             result = self.engine.play(self.board, chess.engine.Limit(depth=self.depth))
             move = result.move
