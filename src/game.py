@@ -6,6 +6,7 @@ from .camera import CameraDetection
 from . import movement
 from . import communication
 from .board import BoardWithOffsets
+from .detection import visualise_chessboard
 
 HUMAN = 0
 ROBOT = 1
@@ -33,7 +34,6 @@ class Game:
                     new_board: BoardWithOffsets, 
                     player: int = HUMAN,
                     move_pieces: bool = False):
-
         if move_pieces:
             if self.board is None:
                 # TODO: Maybe flip board if perspectives differ
@@ -46,11 +46,13 @@ class Game:
         self.player = player
 
     def robot_makes_move(self, move: Optional[chess.Move] = None) -> Optional[chess.Move]:
+        visualise_chessboard(self.board)
+
         new_board = self.detection.capture_board(perspective=self.board)
         self.board.offsets = new_board.offsets
 
-        if move is not None:
-            result = self.engine.play(self.board, chess.engine.Limit(depth=self.depth))
+        if move is None:
+            result = self.engine.play(self.board.chess_board, chess.engine.Limit(depth=self.depth))
             move = result.move
 
         if not self.validate_move(move):
@@ -70,6 +72,8 @@ class Game:
         return self.board.chess_board
     
     def player_made_move(self) -> Optional[chess.Move]:
+        visualise_chessboard(self.board)
+
         """Assume player has already made a move"""
         prev_board = self.board
         new_board = self.detection.capture_board(perspective=self.board)
@@ -83,7 +87,7 @@ class Game:
         return move
 
     def validate_move(self, move: Optional[chess.Move]) -> bool:
-        return move in self.board.legal_moves
+        return move in self.board.legal_moves()
     
     def check_game_over(self) -> Optional[str]:
         """Check if the game is over and return the result."""
@@ -125,7 +129,6 @@ def main():
     communication.setup_communication()
 
     board = BoardWithOffsets()
-    board = chess.Board()
 
     game = Game(detection, engine, board)
 

@@ -37,27 +37,6 @@ def true_main():
 
         detection = CameraDetection(camera, model)
 
-        game = Game(detection, engine, BoardWithOffsets())
-
-
-        if game.player == HUMAN:
-            if game.player_made_move():
-                # ejimas legalus
-            else:
-                # ejimas nelegalus
-        elif game.player == ROBOT:
-            if game.robot_makes_move():
-                # ejimas padarytas
-            else:
-                # ejimas nepadarytas
-
-        game.player == HUMAN
-        game.check_game_over()
-
-        game.depth = 12
-        game.player = HUMAN
-
-
         new_board = BoardWithOffsets(perspective=chess.BLACK)
         game.reset_board(new_board, move_pieces=)
 
