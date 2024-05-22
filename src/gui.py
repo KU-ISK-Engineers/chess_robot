@@ -348,4 +348,3 @@ def gui_main():
     read_robot_count_from_file()
     root.mainloop()
 
-gui_main()
