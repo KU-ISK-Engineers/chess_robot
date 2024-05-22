@@ -7,6 +7,7 @@ from aruco import detect_aruco_area
 from detection import image_to_board, visualise_chessboard
 import numpy as np
 import time
+from board import BoardWithOffsets
 
 class CameraDetection:
     def __init__(self, camera: pylon.InstantCamera, model: YOLO, timeout: int = 5000) -> None:
@@ -15,7 +16,6 @@ class CameraDetection:
         self.model = model
         self.area = None
         self.board = None
-        self.percentages = None
 
     def capture_image(self) -> cv2.Mat:
         if not self.camera.IsGrabbing():
@@ -39,11 +39,10 @@ class CameraDetection:
         self.image = cropped_image
         return self.image
     
-    def capture_board(self, perspective: chess.Color = chess.WHITE):
+    def capture_board(self, perspective: chess.Color = chess.WHITE) -> BoardWithOffsets:
         image = self.capture_image()
-        self.board, self.percentages = image_to_board(image, self.model, perspective)
-
-        return self.board, self.percentages
+        board = image_to_board(image, self.model, perspective)
+        return board
     
     def _preprocess_image(self, image: cv2.Mat) -> cv2.Mat:
         image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -111,9 +110,8 @@ def main():
 
     while True:
         #image = detection.capture_image()
-        board, percentages = detection.capture_board()
-        visualise_chessboard(board, percentages)
-
+        board = detection.capture_board()
+        visualise_chessboard(board)
 
         # cv2.namedWindow('image', cv2.WINDOW_NORMAL)
         # cv2.imshow('image', image)

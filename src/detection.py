@@ -190,7 +190,7 @@ def image_to_board(image: cv2.Mat, model: YOLO, perspective: chess.Color = chess
 
 # ----------------- TESTING -----------------
 
-#from pypylon import pylon
+from pypylon import pylon
 from ultralytics import YOLO
 import sys
 
