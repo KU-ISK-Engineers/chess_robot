@@ -2,10 +2,10 @@ import chess
 import chess.engine
 from typing import Optional
 
-from camera import CameraDetection
-import movement
-import communication
-from .communication import RESPONSE_SUCCESS
+from .camera import CameraDetection
+from . import movement
+from . import communication
+from .board import BoardWithOffsets
 
 HUMAN = 0
 ROBOT = 1
@@ -17,36 +17,32 @@ class Game:
     def __init__(self, 
                  detection: CameraDetection,
                  engine: chess.engine.SimpleEngine,
-                 board: chess.Board, 
-                 perspective: chess.Color = chess.WHITE,
+                 board: BoardWithOffsets, 
                  depth: int = 4,
                  player: int = HUMAN,
                  move_pieces: bool = False) -> None:
         self.detection = detection
         self.board = board
-        self.perspective = perspective
         self.player = player
         self.depth = depth
         self.engine = engine
 
-        self.reset_board(board, perspective, player, move_pieces=move_pieces)
+        self.reset_board(board, player, move_pieces=move_pieces)
 
     def reset_board(self, 
-                    new_board: chess.Board, 
-                    perspective: chess.Color = chess.White,
+                    new_board: BoardWithOffsets, 
                     player: int = HUMAN,
                     move_pieces: bool = False):
 
         if move_pieces:
             if self.board is None:
-                self.board = self.camera.capture_board()
+                # TODO: Maybe flip board if perspectives differ
+                self.board = self.detection.capture_board(perspective=new_board.perspective)
 
-            response = movement.reset_board(self.board, new_board)
+            response = movement.reset_board(self.board, new_board.chess_board, new_board.perspective)
             if response != communication.RESPONSE_SUCCESS:
                 raise RuntimeError("Robot hand timed out")
                 
-        self.board = new_board
-        self.perspective = perspective
         self.player = player
 
     def robot_makes_move(self, move: Optional[chess.Move] = None) -> Optional[chess.Move]:
@@ -57,9 +53,9 @@ class Game:
         if not self.validate_move(move):
             return 
         
-        response = movement.make_move(self.board, move, self.perspective)
-        if response != RESPONSE_SUCCESS:
-            raise RuntimeError("Robot hand timed out")
+        response = movement.reflect_move(self.board, move)
+        if response != communication.RESPONSE_SUCCESS:
+            return
         
         # TODO: Make a new image to ensure no one fucked up with the movement
         
@@ -67,17 +63,20 @@ class Game:
         self.board.push(move)
         return move
     
+    def chess_board(self) -> chess.Board:
+        return self.board.chess_board
+    
     def player_made_move(self) -> Optional[chess.Move]:
         """Assume player has already made a move"""
         prev_board = self.board
-        new_board = self.detection.capture_board(self.perspective)
-        move = movement.identify_move(prev_board, new_board)
+        new_board = self.detection.capture_board(perspective=self.board)
+        move = movement.identify_move(prev_board.chess_board, new_board.chess_board)
 
         if not self.validate_move(move):
             return None
         
         self.player = ROBOT
-        self.board.push(move)
+        self.board.push(move, to_offset=new_board.offset(move.to_square))
         return move
 
     def validate_move(self, move: Optional[chess.Move]) -> bool:
@@ -85,8 +84,8 @@ class Game:
     
     def check_game_over(self) -> Optional[str]:
         """Check if the game is over and return the result."""
-        if self.board.is_game_over():
-            return self.board.result()
+        if self.board.chess_board.is_game_over():
+            return self.board.chess_board.result()
         return None
 
 # ----- TESTING ---
@@ -122,9 +121,10 @@ def main():
 
     communication.setup_communication()
 
+    board = BoardWithOffsets()
     board = chess.Board()
 
-    game = Game(detection, engine, board, chess.BLACK)
+    game = Game(detection, engine, board)
 
     while True:
         if game.player == ROBOT:
@@ -139,6 +139,5 @@ def main():
             print(f"Game over with result: {result}")
             break
 
-
-
-
+if __name__ == "__main__":
+    main()

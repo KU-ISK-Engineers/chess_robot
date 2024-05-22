@@ -3,10 +3,25 @@ import time
 import chess
 import random
 import logging
+from .board import SquareOffset, SQUARE_CENTER
 
-# TCP/IP configuration
-ROBOT_IP = '192.168.1.6'  # Replace with your robot's actual IP address
-ROBOT_PORT = 6001         # Replace with your robot's actual port number
+# Global socket object
+robot_socket = None
+
+OFF_BOARD_SQUARES = {
+    (chess.ROOK, chess.WHITE): -1,
+    (chess.BISHOP, chess.WHITE): -2,
+    (chess.KNIGHT, chess.WHITE): -3,
+    (chess.QUEEN, chess.WHITE): -4,
+    (chess.KING, chess.WHITE): -5,
+    (chess.PAWN, chess.WHITE): -6,
+    (chess.ROOK, chess.BLACK): -7,
+    (chess.BISHOP, chess.BLACK): -8,
+    (chess.KNIGHT, chess.BLACK): -9,
+    (chess.QUEEN, chess.BLACK): -10,
+    (chess.KING, chess.BLACK): -11,
+    (chess.PAWN, chess.BLACK): -12,
+}
 
 # Delay configuration
 DELAY_TIMEOUT_MIN_S = 0.1
@@ -17,43 +32,48 @@ DELAY_WAIT_S = 0.1
 RESPONSE_TIMEOUT = 0
 RESPONSE_SUCCESS = 1
 
-def off_board_square(piece_type: chess.PieceType, color: chess.Color, perspective: chess.Color = chess.WHITE) -> int:
-    pieces_white_perspective = {
-        (chess.ROOK, chess.WHITE): -1,
-        (chess.BISHOP, chess.WHITE): -2,
-        (chess.KNIGHT, chess.WHITE): -3,
-        (chess.QUEEN, chess.WHITE): -4,
-        (chess.KING, chess.WHITE): -5,
-        (chess.PAWN, chess.WHITE): -6,
-        (chess.ROOK, chess.BLACK): -7,
-        (chess.BISHOP, chess.BLACK): -8,
-        (chess.KNIGHT, chess.BLACK): -9,
-        (chess.QUEEN, chess.BLACK): -10,
-        (chess.KING, chess.BLACK): -11,
-        (chess.PAWN, chess.BLACK): -12,
-    }
+def setup_communication(ip_address: str = '192.168.1.6', port: int = 6001):
+    global robot_socket
+    robot_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    robot_socket.settimeout(DELAY_TIMEOUT_MAX_S)
+    robot_socket.connect((ip_address, port))
+    logging.info(f"Connected to {ip_address}:{port}")
 
-    piece_value = pieces_white_perspective[(piece_type, color)]
-    if perspective == chess.BLACK:
-        # Flip groups
-        if piece_value >= -6:
-            piece_value -= 6
-        else:
-            piece_value += 6
+def close_communication():
+    global robot_socket
+    if robot_socket:
+        robot_socket.close()
+        robot_socket = None
+        logging.info("Connection closed")
 
-    return piece_value
+def off_board_square(piece_type: chess.PieceType, color: chess.Color) -> int:
+    return OFF_BOARD_SQUARES[(piece_type, color)]
 
-def form_command(from_square: chess.Square, to_square: chess.Square, offset_x: float = 0, offset_y: float = 0, perspective: chess.Color = chess.WHITE) -> str:
+def form_command(from_square: chess.Square, to_square: chess.Square, offset: SquareOffset = SQUARE_CENTER, perspective: chess.Color = chess.WHITE) -> str:
     # Convert to decimal percentage
-    offset_x = int(max(min(offset_x * 100, 100), -100))
-    offset_y = int(max(min(offset_y * 100, 100), -100))
+    offset_x = int(max(min(offset.x * 100, 100), -100))
+    offset_y = int(max(min(offset.y * 100, 100), -100))
 
+    # TODO: Test this part
     if perspective == chess.BLACK:
         # Invert square coordinates
         if 0 <= from_square <= 63:
             from_square = 63 - from_square
+        else:
+            # Flip groups
+            if from_square >= -6:
+                from_square -= 6
+            else:
+                from_square += 6
+
         if 0 <= to_square <= 63:
             to_square = 63 - to_square
+        else:
+            # Flip groups
+            if to_square >= -6:
+                to_square -= 6
+            else:
+                to_square += 6
 
         # Invert percentages to reflect direction of perspective
         offset_x = -offset_x
@@ -67,37 +87,39 @@ def form_command(from_square: chess.Square, to_square: chess.Square, offset_x: f
     
     return command_string
 
-def send_command_to_robot(ip, port, command, timeout_max=DELAY_TIMEOUT_MAX_S):
-    # Create a socket object
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        # Set a timeout for the socket
-        s.settimeout(timeout_max)
-        
-        # Connect to the robot server
-        s.connect((ip, port))
-        
-        # Convert command to a space-separated string and encode to bytes
-        message = command.encode('utf-8')
-                    
-        # Send the message to the robot server
-        s.sendall(message)
-        
-        # Wait for and receive a response from the robot server
-        start_time = time.time()
-        while (time.time() - start_time) < timeout_max:
-            try:
-                response = s.recv(1024)
-                if response:
-                    print('Received', repr(response))
-                    return RESPONSE_SUCCESS
-            except socket.timeout:
-                pass  # Continue waiting until timeout_max
+def issue_command(command, timeout_max=DELAY_TIMEOUT_MAX_S):
+    global robot_socket
+    if not robot_socket:
+        raise RuntimeError("Connection not established. Call setup_communication() first.")
+    
+    # Convert command to a space-separated string and encode to bytes
+    message = command.encode('utf-8')
+                
+    # Send the message to the robot server
+    robot_socket.sendall(message)
+    
+    # Wait for and receive a response from the robot server
+    start_time = time.time()
+    while (time.time() - start_time) < timeout_max:
+        try:
+            response = robot_socket.recv(1024)
+            if response:
+                print('Received', repr(response))
+                return RESPONSE_SUCCESS
+        except socket.timeout:
+            pass  # Continue waiting until timeout_max
 
         print(f"Response too slow (>{timeout_max}s)!")
         return RESPONSE_TIMEOUT
 
 def main():
+    # TCP/IP configuration
+    robot_ip = '192.168.1.6'  # Replace with your robot's actual IP address
+    robot_port = 6001         # Replace with your robot's actual port number
+
     logging.basicConfig(level=logging.INFO)
+
+    setup_communication(robot_ip, robot_port)
     
     from_square = random.randint(0, 63)
     to_square = random.randint(0, 63)
@@ -105,12 +127,13 @@ def main():
     logging.info(f"Moving from {from_square} to {to_square}")
 
     command = form_command(from_square, to_square)
-
-    result = send_command_to_robot(ROBOT_IP, ROBOT_PORT, command)
+    result = issue_command(command)
     if result == RESPONSE_SUCCESS:
         logging.info("Command issued successfully")
     else:
         logging.error("Command failed")
+
+    close_communication()
 
 if __name__ == '__main__':
     main()

@@ -1,2 +1,2 @@
 #from communication_ssh import *
-from communication_py import *
+from .communication_py import *

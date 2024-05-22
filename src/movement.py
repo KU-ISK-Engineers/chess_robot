@@ -1,9 +1,9 @@
 import logging
 from typing import List, Optional
 import chess
-import communication
 import time
-from board import BoardWithOffsets
+from . import communication
+from .board import BoardWithOffsets, SQUARE_CENTER
 
 def reflect_move(board: BoardWithOffsets, move: chess.Move) -> int:
     """
@@ -66,20 +66,20 @@ def move_piece(board: BoardWithOffsets, from_square: chess.Square, to_square: ch
         move_str = f"{from_str} -> {to_str}"
         logging.info(f"Making move: {move_str}")
 
-        offset_x, offset_y = board.offset(from_square)
+        offset = board.offset(from_square)
 
-        command = communication.form_command(from_square, to_square, offset_x, offset_y, board.perspective)
+        command = communication.form_command(from_square, to_square, offset, perspective=board.perspective)
         response = communication.issue_command(command)
-
-        # Update board offsets
-        if 0 >= from_square <= 63:
-            board.set_offset(from_square, 0, 0)
-
-        if 0 >= to_square <= 63:
-            board.set_offset(to_square, 0, 0)
 
         if response == communication.RESPONSE_SUCCESS:
             logging.info(f"Move {move_str} success")
+
+            # Update board offsets
+            if 0 >= from_square <= 63:
+                board.set_offset(from_square, SQUARE_CENTER)
+
+            if 0 >= to_square <= 63:
+                board.set_offset(to_square, SQUARE_CENTER)
         else:
             logging.warning(f"Move {move_str} failed!")
 
@@ -87,8 +87,8 @@ def move_piece(board: BoardWithOffsets, from_square: chess.Square, to_square: ch
     else:
         return prev_response
 
-# TODO: Check offsets
-def reset_board(board: BoardWithOffsets, expected_board: Optional[chess.Board] = None, perspective: chess.Color = chess.WHITE) -> int:
+# TODO: Check offsets, flip board if perspectives differ
+def reset_board(board: BoardWithOffsets, expected_board: Optional[chess.Board] = None, perspective: Optional[chess.Color] = None) -> int:
     """
     Assumes expected_board can be created using current pieces.
     """
@@ -96,10 +96,8 @@ def reset_board(board: BoardWithOffsets, expected_board: Optional[chess.Board] =
     if expected_board is None:
         expected_board = chess.Board()
 
-    current_board = board.chess_board
-
     # Create mappings for current and expected piece positions
-    current_positions = {square: current_board.piece_at(square) for square in chess.SQUARES if current_board.piece_at(square)}
+    current_positions = {square: board.piece_at(square) for square in chess.SQUARES if board.piece_at(square)}
     expected_positions = {square: expected_board.piece_at(square) for square in chess.SQUARES if expected_board.piece_at(square)}
 
     # Find pieces that are correctly placed, to avoid unnecessary moves
@@ -115,17 +113,16 @@ def reset_board(board: BoardWithOffsets, expected_board: Optional[chess.Board] =
 
     # Helper function to move a piece and update mappings
     def move_piece_and_update(start_square: chess.Square, end_square: chess.Square) -> int:
-        if move_piece(start_square, end_square, perspective) == communication.RESPONSE_TIMEOUT:
-            return communication.RESPONSE_TIMEOUT
-
-        piece = current_board.remove_piece_at(start_square)
-        current_board.set_piece_at(end_square, piece)
+        response = move_piece(board, start_square, end_square)
+        if response != communication.RESPONSE_SUCCESS:
+            return response
 
         current_positions.pop(start_square)
         current_positions[end_square] = piece
 
         if end_square in expected_positions and expected_positions[end_square] == piece:
             expected_positions.pop(end_square)
+
         return communication.RESPONSE_SUCCESS
 
     # First pass: move pieces directly to their target positions if possible
@@ -155,6 +152,9 @@ def reset_board(board: BoardWithOffsets, expected_board: Optional[chess.Board] =
         if move_piece_and_update(origin_square, square) == communication.RESPONSE_TIMEOUT:
             return communication.RESPONSE_TIMEOUT
 
+    board.chess_board = expected_board
+    if perspective:
+        board.perspective = perspective
     return communication.RESPONSE_SUCCESS
 
 def identify_move(prev_board: chess.Board, current_board: chess.Board) -> Optional[chess.Move]:
@@ -275,9 +275,9 @@ def _is_en_passant(board, move):
 # ---- TESTING ---
 
 import sys
-from camera import CameraDetection
+from .camera import CameraDetection
 from ultralytics import YOLO
-from detection import visualise_chessboard
+from .detection import visualise_chessboard
 from pypylon import pylon
 import cv2
 
