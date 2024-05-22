@@ -313,10 +313,8 @@ def main():
 
     while True:
         #image = detection.capture_image()
-        board, percentages = detection.capture_board(perspective=chess.BLACK)
-        print(board)
-
-        visualise_chessboard(board, percentages)
+        board = detection.capture_board(perspective=chess.BLACK)
+        visualise_chessboard(board)
 
         if prev_board:
             move = identify_move(prev_board, board)
@@ -327,18 +325,16 @@ def main():
             else:
                 print(move.uci())
 
-                command = communication.form_command(move.from_square, move.to_square, perspective=chess.BLACK)
-                response = communication.issue_command(command)
+                visualize_move_with_arrow(prev_board, move, 'move_before.svg')
+                visualize_move_with_arrow(board, move, 'move_after.svg')
 
+                response = reflect_move(board, move)
                 if response == communication.RESPONSE_SUCCESS:
                     print('response Success')
 
-                    visualize_move_with_arrow(prev_board, move, 'move_before.svg')
-
                     prev_board.push(move)
-
-                    visualize_move_with_arrow(board, move, 'move_after.svg')
                 else:
+                    print('response fail')
                     time.sleep(5)
 
 def visualize_move_with_arrow(board, move, filename):
