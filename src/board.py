@@ -25,7 +25,7 @@ class BoardWithOffsets:
         self.offsets[chess.square_rank(square), chess.square_file(square)] = offset
 
     def piece_at(self, square: chess.Square):
-        return self.piece_at(square)
+        return self.chess_board.piece_at(square)
 
     def remove_piece_at(self, square: chess.Square) -> Optional[chess.Piece]:
         piece = self.chess_board.remove_piece_at(square)
