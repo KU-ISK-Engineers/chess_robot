@@ -40,9 +40,9 @@ def win_lose_msg(player_color, result, root):
     back = Image.open("images/back.png")
     back = back.resize((200, 100), Image.Resampling.LANCZOS)
     back = ImageTk.PhotoImage(back)
-    back_button = tk.Button(root, image=back, command=lambda: levels_screen(root), borderwidth=0, bg="#FFFFFF")
+    back_button = tk.Button(root, image=back, command=lambda: levels_screen(root), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
     back_button.image = back
-    back_button.place(x=(screen_width - back.width()) // 2, y=screen_height - back.height() - 50)
+    back_button.place(x=1200, y=800)
 
     game_over_image = Image.open("gui/images/game_over.png")
     game_over_image = ImageTk.PhotoImage(game_over_image)
@@ -80,7 +80,7 @@ def win_lose_msg(player_color, result, root):
 
 def play_chess(level, player_color, root):
     result = "1-0"
-    win_lose_msg(player_color, result, root)
+    #win_lose_msg(player_color, result, root)
 
 def clear_widget(widget):
     widget.destroy()
@@ -118,19 +118,19 @@ def levels_screen(root):
     level3_img = ImageTk.PhotoImage(level3_img)
     level4_img = ImageTk.PhotoImage(level4_img)
 
-    level1_button = tk.Button(root, image=level1_img, command=lambda: select_level(2), borderwidth=0, bg="#FFFFFF")
+    level1_button = tk.Button(root, image=level1_img, command=lambda: select_level(2), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
     level1_button.image = level1_img
     level1_button.place(x=(screen_width - level1_img.width()) // 2, y=(screen_height - choose_level.height()) // 2 - 50)
 
-    level2_button = tk.Button(root, image=level2_img, command=lambda: select_level(4), borderwidth=0, bg="#FFFFFF")
+    level2_button = tk.Button(root, image=level2_img, command=lambda: select_level(4), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
     level2_button.image = level2_img
     level2_button.place(x=(screen_width - level2_img.width()) // 2, y=(screen_height - choose_level.height()) // 2 + 75)
 
-    level3_button = tk.Button(root, image=level3_img, command=lambda: select_level(6), borderwidth=0, bg="#FFFFFF")
+    level3_button = tk.Button(root, image=level3_img, command=lambda: select_level(6), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
     level3_button.image = level3_img
     level3_button.place(x=(screen_width - level3_img.width()) // 2, y=(screen_height - choose_level.height()) // 2 + 200)
 
-    level4_button = tk.Button(root, image=level4_img, command=lambda: select_level(20), borderwidth=0, bg="#FFFFFF")
+    level4_button = tk.Button(root, image=level4_img, command=lambda: select_level(20), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
     level4_button.image = level4_img
     level4_button.place(x=(screen_width - level4_img.width()) // 2, y=(screen_height - choose_level.height()) // 2 + 325)
 
@@ -191,20 +191,18 @@ def game_screen(root):
 
     def resign_button_commands(root):
         levels_screen(root)
-        update_robot_win_count()
 
     resign = Image.open("images/resign.png")
     resign = resign.resize((200, 100), Image.Resampling.LANCZOS)
     resign = ImageTk.PhotoImage(resign)
-
-    resign_button = tk.Button(root, image=resign, command=lambda: resign_button_commands(root), borderwidth=0, bg="#FFFFFF")
+    resign_button = tk.Button(root, image=resign, command=lambda: resign_button_commands(root), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
     resign_button.image = resign
-    resign_button.place(x=screen_width - resign.width() - 50, y=screen_height - resign.height() - 50)
+    resign_button.place(x=1200, y=800)
 
     finished_move = Image.open("images/move_finished.png")
     finished_move = finished_move.resize((300, 150), Image.Resampling.LANCZOS)
     finished_move = ImageTk.PhotoImage(finished_move)
-    finished_button = tk.Button(root, image=finished_move, command=lambda: send_move(finished_button, lambda active: update_turn(active, robot_label, user_label, robot_turn_active, robot_turn_inactive, your_turn_active, your_turn_inactive, finished_button)), borderwidth=0, bg="#FFFFFF")
+    finished_button = tk.Button(root, image=finished_move, command=lambda: send_move(finished_button, lambda active: update_turn(active, robot_label, user_label, robot_turn_active, robot_turn_inactive, your_turn_active, your_turn_inactive, finished_button)), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
     finished_button.image = finished_move
 
     root.after(3000, lambda: update_turn("robot", robot_label, user_label, robot_turn_active, robot_turn_inactive, your_turn_active, your_turn_inactive, finished_button))
@@ -231,13 +229,13 @@ def color_screen(root):
 
     color1 = Image.open("images/white.png")
     color1 = ImageTk.PhotoImage(color1)
-    button1 = tk.Button(root, image=color1, command=lambda: assign_color("white"), borderwidth=0, bg="#FFFFFF")
+    button1 = tk.Button(root, image=color1, command=lambda: assign_color("white"), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
     button1.image = color1
     button1.place(x=(screen_width - color1.width()) // 2, y=(screen_height - color1.height()) // 2)
 
     color2 = Image.open("images/black.png")
     color2 = ImageTk.PhotoImage(color2)
-    button2 = tk.Button(root, image=color2, command=lambda: assign_color("black"), borderwidth=0, bg="#FFFFFF")
+    button2 = tk.Button(root, image=color2, command=lambda: assign_color("black"), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
     button2.image = color2
     button2.place(x=(screen_width - color2.width()) // 2, y=(screen_height - color2.height()) // 2 + 200)
 
@@ -323,7 +321,7 @@ def start_button(root):
     image = Image.open("images/start.png")
     image = ImageTk.PhotoImage(image)
 
-    button = tk.Button(root, image=image, command=start_game, borderwidth=0, highlightthickness=0, bg="#FFFFFF")
+    button = tk.Button(root, image=image, command=start_game, borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
     button.image = image
 
     screen_width = root.winfo_screenwidth()
@@ -347,4 +345,3 @@ def gui_main():
     levels_screen(root)
     read_robot_count_from_file()
     root.mainloop()
-
