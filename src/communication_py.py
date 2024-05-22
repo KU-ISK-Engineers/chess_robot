@@ -97,8 +97,11 @@ def issue_command(command, timeout_max=DELAY_TIMEOUT_MAX_S):
         try:
             response = robot_socket.recv(1024)
             if response:
-                print('Received', repr(response))
-                return RESPONSE_SUCCESS
+                decoded_response = response.decode('utf-8').strip()
+                if decoded_response == "success":
+                    return RESPONSE_SUCCESS
+                else:
+                    return RESPONSE_TIMEOUT
         except socket.timeout:
             pass  # Continue waiting until timeout_max
 

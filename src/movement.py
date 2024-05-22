@@ -301,7 +301,7 @@ def main():
 
     detection = CameraDetection(camera, model)
 
-    prev_board = BoardWithOffsets()
+    prev_board = BoardWithOffsets(perspective=chess.BLACK)
     print(prev_board)
 
     communication.setup_communication()
@@ -314,16 +314,20 @@ def main():
         if prev_board:
             move = identify_move(prev_board.chess_board, board.chess_board)
 
+            if not move:
+                continue
+            
+            print(move.uci())
+
             if move not in prev_board.legal_moves():
                 pass
                 #print('Illegal move')
             else:
-                print(move.uci())
 
                 visualize_move_with_arrow(prev_board, move, 'move_before.svg')
                 visualize_move_with_arrow(board, move, 'move_after.svg')
 
-                response = reflect_move(board, move)
+                response = reflect_move(prev_board, move)
                 if response == communication.RESPONSE_SUCCESS:
                     print('response Success')
 
