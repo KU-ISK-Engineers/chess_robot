@@ -359,13 +359,14 @@ def start_button(root):
     # Place the button at the calculated coordinates
     button.place(x=x, y=y)
 
-read_robot_count_from_file()
-root = tk.Tk()
-root.configure(bg="#FFFFFF")
-create_empty_frame(root)
-add_logos(root)
-levels_screen(root)
-# Read robot count at the start
-read_robot_count_from_file()
-root.mainloop()
-
+def gui_main():
+    global root
+    read_robot_count_from_file()
+    root = tk.Tk()
+    root.configure(bg="#FFFFFF")
+    create_empty_frame(root)
+    add_logos(root)
+    levels_screen(root)
+    # Read robot count at the start
+    read_robot_count_from_file()
+    root.mainloop()
