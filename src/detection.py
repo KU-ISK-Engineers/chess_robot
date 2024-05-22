@@ -153,7 +153,7 @@ def map_squares_to_board(mapped_squares: List[MappedSquare], perspective: chess.
         board.set_piece_at(square_index, piece)
         
         # Store the distance percentages
-        offsets[row][col] = SquareOffset(square.dx_offset, square.dy_offset)
+        offsets[chess.square_rank(square_index)][chess.square_file(square)] = SquareOffset(square.dx_offset, square.dy_offset)
 
     return BoardWithOffsets(board, offsets, perspective)
 
