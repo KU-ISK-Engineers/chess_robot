@@ -1,7 +1,7 @@
 from src.gui import gui_main
 from src.communication import setup_communication, close_communication
 from src.camera import CameraDetection
-from src.game import Game
+from src.game import Game, HUMAN, ROBOT
 from src.board import BoardWithOffsets
 from pypylon import pylon
 from ultralytics import YOLO
@@ -30,7 +30,7 @@ def true_main():
         
         setup_communication()
 
-        model = YOLO("../training/chess_200.pt")
+        model = YOLO("chess_200.pt")
         camera = setup_camera()
 
         engine = chess.engine.SimpleEngine.popen_uci("../stockfish_pi/stockfish-android-armv8")
@@ -39,7 +39,32 @@ def true_main():
 
         game = Game(detection, engine, BoardWithOffsets())
 
-        gui_main()
+
+        if game.player == HUMAN:
+            if game.player_made_move():
+                # ejimas legalus
+            else:
+                # ejimas nelegalus
+        elif game.player == ROBOT:
+            if game.robot_makes_move():
+                # ejimas padarytas
+            else:
+                # ejimas nepadarytas
+
+        game.player == HUMAN
+        game.check_game_over()
+
+        game.depth = 12
+        game.player = HUMAN
+
+
+        new_board = BoardWithOffsets(perspective=chess.BLACK)
+        game.reset_board(new_board, move_pieces=)
+
+        game.board.perspective = chess.WHITE
+        game.reset_board()
+
+        gui_main(game)
     except Exception as e:
         logging.exception(e)
         close_communication()
