@@ -1,5 +1,6 @@
 import tkinter as tk
 from PIL import Image, ImageTk
+from .game import HUMAN, ROBOT
 
 robot_count=0
 def update_robot_win_count():
@@ -279,6 +280,9 @@ def game_screen(root):
     finished_move = ImageTk.PhotoImage(finished_move)
     finished_button = tk.Button(root, image=finished_move, command=lambda: finished_functions('robot'), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
     finished_button.image = finished_move
+
+    ## Jei game.player yra human, tai tada ejimas turetu buti patikrintas po mygtuko (finished_button) paspaudimo (command=....), t.y finished_functions funckcijoje
+    ## Jei game.player yra robot, tai tada programa laukia 
 '''
     if game.player == HUMAN:
             if game.player_made_move():
@@ -314,4 +318,5 @@ def gui_main(game_obj):
 
     root.mainloop()
 
-gui_main()
+# called from run.py
+# gui_main()
