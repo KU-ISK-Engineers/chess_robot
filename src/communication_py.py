@@ -5,9 +5,6 @@ import random
 import logging
 from .board import SquareOffset, SQUARE_CENTER
 
-# Global socket object
-robot_socket = None
-
 OFF_BOARD_SQUARES = {
     (chess.ROOK, chess.WHITE): -1,
     (chess.BISHOP, chess.WHITE): -2,
@@ -32,19 +29,14 @@ DELAY_WAIT_S = 0.1
 RESPONSE_TIMEOUT = 0
 RESPONSE_SUCCESS = 1
 
-def setup_communication(ip_address: str = '192.168.1.6', port: int = 6001):
-    global robot_socket
-    robot_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    robot_socket.settimeout(DELAY_TIMEOUT_MAX_S)
-    robot_socket.connect((ip_address, port))
-    logging.info(f"Connected to {ip_address}:{port}")
+ip_address = '192.168.1.6'
+port = 6001
 
-def close_communication():
-    global robot_socket
-    if robot_socket:
-        robot_socket.close()
-        robot_socket = None
-        logging.info("Connection closed")
+def setup_communication(new_ip_address: str = '192.168.1.6', new_port: int = 6001):
+    global ip_address, port
+
+    ip_address = new_ip_address
+    port = new_port
 
 def off_board_square(piece_type: chess.PieceType, color: chess.Color) -> int:
     return OFF_BOARD_SQUARES[(piece_type, color)]
@@ -88,9 +80,10 @@ def form_command(from_square: chess.Square, to_square: chess.Square, offset: Squ
     return command_string
 
 def issue_command(command, timeout_max=DELAY_TIMEOUT_MAX_S):
-    global robot_socket
-    if not robot_socket:
-        raise RuntimeError("Connection not established. Call setup_communication() first.")
+    robot_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    robot_socket.settimeout(DELAY_TIMEOUT_MAX_S)
+    robot_socket.connect((ip_address, port))
+    logging.info(f"Connected to {ip_address}:{port}")
     
     # Convert command to a space-separated string and encode to bytes
     message = command.encode('utf-8')
@@ -104,8 +97,11 @@ def issue_command(command, timeout_max=DELAY_TIMEOUT_MAX_S):
         try:
             response = robot_socket.recv(1024)
             if response:
-                print('Received', repr(response))
-                return RESPONSE_SUCCESS
+                decoded_response = response.decode('utf-8').strip()
+                if decoded_response == "success":
+                    return RESPONSE_SUCCESS
+                else:
+                    return RESPONSE_TIMEOUT
         except socket.timeout:
             pass  # Continue waiting until timeout_max
 
@@ -132,8 +128,6 @@ def main():
         logging.info("Command issued successfully")
     else:
         logging.error("Command failed")
-
-    close_communication()
 
 if __name__ == '__main__':
     main()

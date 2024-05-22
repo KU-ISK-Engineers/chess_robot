@@ -1,5 +1,5 @@
 from src.gui import gui_main
-from src.communication import setup_communication, close_communication
+from src.communication import setup_communication
 from src.camera import CameraDetection
 from src.game import Game, HUMAN, ROBOT
 from src.board import BoardWithOffsets
@@ -21,8 +21,19 @@ def setup_camera():
 
     return camera
 
-def setup_yolo():
-    pass
+def test_game(game: Game):
+    while True:
+        if game.player == ROBOT:
+            move = game.robot_makes_move()
+            print(f"Robot made move: {move}")
+        else:
+            move = game.player_made_move()
+            print(f"Player made move: {move}")
+        
+        result = game.check_game_over()
+        if result:
+            print(f"Game over with result: {result}")
+            break
 
 def true_main():
     try:
@@ -33,44 +44,16 @@ def true_main():
         model = YOLO("chess_200.pt")
         camera = setup_camera()
 
-        engine = chess.engine.SimpleEngine.popen_uci("../stockfish_pi/stockfish-android-armv8")
+        engine = chess.engine.SimpleEngine.popen_uci("stockfish8/Stockfish-sf_15/src/stockfish")
 
         detection = CameraDetection(camera, model)
 
-        game = Game(detection, engine, BoardWithOffsets())
+        game = Game(detection, engine)
 
+        test_game(game)
 
-        if game.player == HUMAN:
-            if game.player_made_move():
-                # ejimas legalus
-            else:
-                # ejimas nelegalus
-        elif game.player == ROBOT:
-            if game.robot_makes_move():
-                # ejimas padarytas
-            else:
-                # ejimas nepadarytas
-
-        game.player == HUMAN
-        game.check_game_over()
-
-        game.depth = 12
-        game.player = HUMAN
-
-
-        new_board = BoardWithOffsets(perspective=chess.BLACK)
-        game.reset_board(new_board, move_pieces=)
-
-        game.board.perspective = chess.WHITE
-        game.reset_board()
-
-        gui_main(game)
     except Exception as e:
         logging.exception(e)
-        close_communication()
-
-def main():
-    gui_main()
 
 if __name__ == "__main__":
-    main()
+    true_main()
