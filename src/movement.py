@@ -13,20 +13,20 @@ def reflect_move(board: BoardWithOffsets, move: chess.Move) -> int:
     response = communication.RESPONSE_SUCCESS
     from_square, to_square = (move.from_square, move.to_square)
 
-    if board.is_castling(move):
+    if board.chess_board.is_castling(move):
         rook_move = _castle_rook_move(board, move)
 
         response = move_piece(board, from_square, to_square, response)
         response = move_piece(board, rook_move.from_square, rook_move.to_square, response)
     else:  # Regular moves
-        if board.is_capture(move):
+        if board.chess_board.is_capture(move):
             captured_piece = board.piece_at(to_square)
             piece_type, color = (captured_piece.piece_type, captured_piece.color)
             off_board_place = communication.off_board_square(piece_type, color)
 
             # Remove captured piece
             response = move_piece(board, to_square, off_board_place, response)
-        if board.is_en_passant(move):
+        if board.chess_board.is_en_passant(move):
             captured_square = _en_passant_captured(move)
             captured_piece = board.piece_at(captured_square)
             piece_type, color = (captured_piece.piece_type, captured_piece.color)
@@ -306,42 +306,38 @@ def main():
 
     detection = CameraDetection(camera, model)
 
-    prev_board = chess.Board()
+    prev_board = BoardWithOffsets()
     print(prev_board)
 
     communication.setup_communication()
 
     while True:
         #image = detection.capture_image()
-        board, percentages = detection.capture_board(perspective=chess.BLACK)
-        print(board)
-
-        visualise_chessboard(board, percentages)
+        board = detection.capture_board(perspective=chess.BLACK)
+        visualise_chessboard(board)
 
         if prev_board:
-            move = identify_move(prev_board, board)
+            move = identify_move(prev_board.chess_board, board.chess_board)
 
-            if move not in prev_board.legal_moves:
+            if move not in prev_board.legal_moves():
                 pass
                 #print('Illegal move')
             else:
                 print(move.uci())
 
-                command = communication.form_command(move.from_square, move.to_square, perspective=chess.BLACK)
-                response = communication.issue_command(command)
+                visualize_move_with_arrow(prev_board, move, 'move_before.svg')
+                visualize_move_with_arrow(board, move, 'move_after.svg')
 
+                response = reflect_move(board, move)
                 if response == communication.RESPONSE_SUCCESS:
                     print('response Success')
 
-                    visualize_move_with_arrow(prev_board, move, 'move_before.svg')
-
                     prev_board.push(move)
-
-                    visualize_move_with_arrow(board, move, 'move_after.svg')
                 else:
+                    print('response fail')
                     time.sleep(5)
 
-def visualize_move_with_arrow(board, move, filename):
+def visualize_move_with_arrow(board: BoardWithOffsets, move: chess.Move, filename: str):
     """
     Visualize a move on the chessboard with an arrow from the starting square to the ending square.
     
@@ -351,7 +347,7 @@ def visualize_move_with_arrow(board, move, filename):
     arrow = (move.from_square, move.to_square)
     
     # Display the board with the arrow
-    svg_before = chess.svg.board(board=board, size=400, arrows=[arrow])
+    svg_before = chess.svg.board(board=board.chess_board, size=400, arrows=[arrow])
 
     # Save the SVG image to a file
     with open(filename, 'w') as f:

@@ -8,7 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
-from .board import BoardWithOffsets, SquareOffset
+from .board import BoardWithOffsets, SquareOffset, SQUARE_CENTER
 
 # Minimum piece detection confidence threshold
 THRESHOLD_CONFIDENCE = 0.5
@@ -131,7 +131,7 @@ def map_squares_to_board(mapped_squares: List[MappedSquare], perspective: chess.
     board = chess.Board()
     board.clear_board()
 
-    offsets = np.zeros((8, 8, 2))  
+    offsets = [[SQUARE_CENTER for _ in range(8)] for _ in range(8)]
     
     for square in mapped_squares:
         # Map perspective
@@ -153,7 +153,7 @@ def map_squares_to_board(mapped_squares: List[MappedSquare], perspective: chess.
         board.set_piece_at(square_index, piece)
         
         # Store the distance percentages
-        offsets[row, col] = SquareOffset(square.dx_offset, square.dy_offset)
+        offsets[chess.square_rank(square_index)][chess.square_file(square)] = SquareOffset(square.dx_offset, square.dy_offset)
 
     return BoardWithOffsets(board, offsets, perspective)
 
