@@ -361,9 +361,9 @@ def start_button(root):
 
 def gui_main():
     global root
-    read_robot_count_from_file()
     root = tk.Tk()
     root.configure(bg="#FFFFFF")
+    root.attributes('-fullscreen', True)
     create_empty_frame(root)
     add_logos(root)
     levels_screen(root)
