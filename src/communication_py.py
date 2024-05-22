@@ -25,7 +25,7 @@ OFF_BOARD_SQUARES = {
 
 # Delay configuration
 DELAY_TIMEOUT_MIN_S = 0.1
-DELAY_TIMEOUT_MAX_S = 10
+DELAY_TIMEOUT_MAX_S = 30
 DELAY_WAIT_S = 0.1
 
 # Signal waiting return values
@@ -109,8 +109,8 @@ def issue_command(command, timeout_max=DELAY_TIMEOUT_MAX_S):
         except socket.timeout:
             pass  # Continue waiting until timeout_max
 
-        print(f"Response too slow (>{timeout_max}s)!")
-        return RESPONSE_TIMEOUT
+    print(f"Response too slow (>{timeout_max}s)!")
+    return RESPONSE_TIMEOUT
 
 def main():
     # TCP/IP configuration
