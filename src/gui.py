@@ -363,7 +363,10 @@ def gui_main():
     global root
     root = tk.Tk()
     root.configure(bg="#FFFFFF")
+
     root.attributes('-fullscreen', True)
+    root.attributes('-type', 'splash')
+
     create_empty_frame(root)
     add_logos(root)
     levels_screen(root)
