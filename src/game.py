@@ -18,32 +18,36 @@ class Game:
     def __init__(self, 
                  detection: CameraDetection,
                  engine: chess.engine.SimpleEngine,
-                 board: BoardWithOffsets, 
+                 perspective: chess.Color = chess.WHITE,
                  depth: int = 4,
-                 player: int = HUMAN,
                  move_pieces: bool = False) -> None:
         self.detection = detection
-        self.board = board
-        self.player = player
         self.depth = depth
         self.engine = engine
 
-        self.reset_board(board, player, move_pieces=move_pieces)
+        self.board = None
+        self.player = None
+
+        self.reset_board(perspective, move_pieces=move_pieces)
 
     def reset_board(self, 
-                    new_board: BoardWithOffsets, 
-                    player: int = HUMAN,
+                    perspective: chess.Color, 
                     move_pieces: bool = False):
-        if move_pieces:
-            if self.board is None:
-                # TODO: Maybe flip board if perspectives differ
-                self.board = self.detection.capture_board(perspective=new_board.perspective)
+        self.board = BoardWithOffsets(perspective=perspective)
 
-            response = movement.reset_board(self.board, new_board.chess_board, new_board.perspective)
+        if move_pieces:
+            current_board = self.detection.capture_board(perspective=perspective)
+
+            response = movement.reset_board(current_board, self.board)
             if response != communication.RESPONSE_SUCCESS:
                 raise RuntimeError("Robot hand timed out")
-                
-        self.player = player
+            
+            self.board = current_board
+
+        if self.board.perspective == chess.WHITE:
+            self.player = HUMAN
+        else:
+            self.player = ROBOT
 
     def robot_makes_move(self, move: Optional[chess.Move] = None) -> Optional[chess.Move]:
         visualise_chessboard(self.board)
@@ -56,6 +60,7 @@ class Game:
             move = result.move
 
         if not self.validate_move(move):
+            print(move.uci())
             return 
         
         response = movement.reflect_move(self.board, move)
