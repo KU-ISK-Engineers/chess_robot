@@ -55,6 +55,10 @@ class Game:
         new_board = self.detection.capture_board(perspective=self.board)
         self.board.offsets = new_board.offsets
 
+        if not boards_are_equal(self.board.chess_board, new_board.chess_board):
+            print('Boards are not the same, waiting for the board to reposition to correct place')
+            return 
+
         if move is None:
             result = self.engine.play(self.board.chess_board, chess.engine.Limit(depth=self.depth))
             move = result.move
@@ -99,6 +103,12 @@ class Game:
         if self.board.chess_board.is_game_over():
             return self.board.chess_board.result()
         return None
+    
+def boards_are_equal(board1: chess.Board, board2: chess.Board) -> bool:
+    for square in chess.SQUARES:
+        if board1.piece_at(square) != board2.piece_at(square):
+            return False
+    return True
 
 # ----- TESTING ---
 

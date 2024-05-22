@@ -1,5 +1,5 @@
 from src.gui import gui_main
-from src.communication import setup_communication, close_communication
+from src.communication import setup_communication
 from src.camera import CameraDetection
 from src.game import Game, HUMAN, ROBOT
 from src.board import BoardWithOffsets
@@ -44,7 +44,7 @@ def true_main():
         model = YOLO("chess_200.pt")
         camera = setup_camera()
 
-        engine = chess.engine.SimpleEngine.popen_uci("../stockfish8/Stockfish-sf_15/src/stockfish")
+        engine = chess.engine.SimpleEngine.popen_uci("stockfish8/Stockfish-sf_15/src/stockfish")
 
         detection = CameraDetection(camera, model)
 
