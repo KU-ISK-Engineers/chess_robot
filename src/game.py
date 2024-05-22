@@ -52,7 +52,7 @@ class Game:
     def robot_makes_move(self, move: Optional[chess.Move] = None) -> Optional[chess.Move]:
         visualise_chessboard(self.board)
 
-        new_board = self.detection.capture_board(perspective=self.board)
+        new_board = self.detection.capture_board(perspective=self.board.perspective)
         self.board.offsets = new_board.offsets
 
         if not boards_are_equal(self.board.chess_board, new_board.chess_board):
@@ -85,7 +85,7 @@ class Game:
 
         """Assume player has already made a move"""
         prev_board = self.board
-        new_board = self.detection.capture_board(perspective=self.board)
+        new_board = self.detection.capture_board(perspective=self.board.perspective)
         move = movement.identify_move(prev_board.chess_board, new_board.chess_board)
 
         if not self.validate_move(move):
