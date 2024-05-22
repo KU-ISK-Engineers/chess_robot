@@ -300,16 +300,17 @@ def game_screen(root):
    # check_game_state()
 
 
-def gui_main():
-    global root
+def gui_main(game_obj):
+    global root, game
+    game=game_obj
     root = tk.Tk()
     root.configure(bg="#FFFFFF")
     read_robot_count_from_file()
     background()
     level_screen()
 
-    root.attributes('-fullscreen', True)
-    root.attributes('-type', 'splash')
+    #root.attributes('-fullscreen', True)
+    #root.attributes('-type', 'splash')
 
     root.mainloop()
 
