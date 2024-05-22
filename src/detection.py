@@ -8,7 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
-from board import BoardWithOffsets
+from board import BoardWithOffsets, SquareOffset
 
 # Minimum piece detection confidence threshold
 THRESHOLD_CONFIDENCE = 0.5
@@ -128,7 +128,9 @@ def label_to_char(label: str):
 
 # --- MAPPING TO BOARD ---
 def map_squares_to_board(mapped_squares: List[MappedSquare], perspective: chess.Color = chess.WHITE) -> BoardWithOffsets:
-    board = chess.Board.empty()
+    board = chess.Board()
+    board.clear_board()
+
     offsets = np.zeros((8, 8, 2))  
     
     for square in mapped_squares:
@@ -151,7 +153,7 @@ def map_squares_to_board(mapped_squares: List[MappedSquare], perspective: chess.
         board.set_piece_at(square_index, piece)
         
         # Store the distance percentages
-        offsets[row, col] = (square.dx_offset, square.dy_offset)
+        offsets[row, col] = SquareOffset(square.dx_offset, square.dy_offset)
 
     return BoardWithOffsets(board, offsets, perspective)
 
@@ -235,6 +237,9 @@ def main():
             cv2.namedWindow('Processed Image', cv2.WINDOW_NORMAL)
             cv2.imshow('Processed Image', image)
 
+            board = map_squares_to_board(mapped_squares)
+            visualise_chessboard(board)
+
             # board, percentages = image_to_board(image, model)
             # visualise_chessboard(board, percentages)
             # print(board)
@@ -268,4 +273,4 @@ def image_main():
     visualise_chessboard(board)
 
 if __name__ == "__main__":
-    image_main()
+    main()
