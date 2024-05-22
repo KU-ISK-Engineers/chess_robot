@@ -1,5 +1,6 @@
 import tkinter as tk
 from PIL import Image, ImageTk
+from scripts.chess_move import play_chess
 
 robot_count = 0
 
@@ -22,7 +23,6 @@ def read_robot_count_from_file():
             content = file.read()
             if content:
                 robot_count = int(content)
-                print(f"Robot wins: {robot_count}")
     except FileNotFoundError:
         robot_count = 0
 
@@ -78,9 +78,10 @@ def win_lose_msg(player_color, result, root):
 
     root.after(2000, display_win_lose_messages)
 
-def play_chess(level, player_color, root):
-    result = "1-0"
-    #win_lose_msg(player_color, result, root)
+def game(level, player_color):
+    #result=play_chess(level, player_color)
+    result = "1-0"   #test value
+    win_lose_msg(player_color, result, root)
 
 def clear_widget(widget):
     widget.destroy()
@@ -100,7 +101,6 @@ def levels_screen(root):
             if widget not in logo_widgets:
                 clear_widget(widget)
         color_screen(root)
-        print(level)
 
     choose_level = Image.open("images/choose_level.png")
     choose_level = ImageTk.PhotoImage(choose_level)
@@ -191,6 +191,7 @@ def game_screen(root):
 
     def resign_button_commands(root):
         levels_screen(root)
+        update_robot_win_count()
 
     resign = Image.open("images/resign.png")
     resign = resign.resize((200, 100), Image.Resampling.LANCZOS)
@@ -205,8 +206,10 @@ def game_screen(root):
     finished_button = tk.Button(root, image=finished_move, command=lambda: send_move(finished_button, lambda active: update_turn(active, robot_label, user_label, robot_turn_active, robot_turn_inactive, your_turn_active, your_turn_inactive, finished_button)), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
     finished_button.image = finished_move
 
-    root.after(3000, lambda: update_turn("robot", robot_label, user_label, robot_turn_active, robot_turn_inactive, your_turn_active, your_turn_inactive, finished_button))
-    root.after(6000, lambda: update_turn("user", robot_label, user_label, robot_turn_active, robot_turn_inactive, your_turn_active, your_turn_inactive, finished_button))
+    game(level, player_color)
+
+    #root.after(3000, lambda: update_turn("robot", robot_label, user_label, robot_turn_active, robot_turn_inactive, your_turn_active, your_turn_inactive, finished_button))
+    #root.after(6000, lambda: update_turn("user", robot_label, user_label, robot_turn_active, robot_turn_inactive, your_turn_active, your_turn_inactive, finished_button))
 
 def assign_color(selected_color):
     global player_color
@@ -244,7 +247,6 @@ def start_game():
         if widget not in logo_widgets:
             clear_widget(widget)
     game_screen(root)
-    play_chess(level, player_color, root=root)
 
 def add_logos(root):
     global logo_widgets, count_label
@@ -344,4 +346,5 @@ def gui_main():
     add_logos(root)
     levels_screen(root)
     read_robot_count_from_file()
+    
     root.mainloop()
