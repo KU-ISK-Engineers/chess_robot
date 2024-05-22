@@ -136,10 +136,10 @@ def map_squares_to_board(mapped_squares: List[MappedSquare], perspective: chess.
     for square in mapped_squares:
         # Map perspective
         if perspective == chess.WHITE:
-            row = square.row
+            row = 7 - square.row
             col = square.col
         else:
-            row = 7 - square.row
+            row = square.row
             col = square.col
 
         piece_label = square.label
