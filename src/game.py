@@ -106,10 +106,7 @@ class Game:
         if not self.resigned:
             return self.board.chess_board.result()
         
-        if self.board.perspective == chess.WHITE:
-            return "0-1"
-        else:
-            return "1-0"
+        return "resigned"
     
     def resign_player(self):
         self.resigned = True

@@ -3,8 +3,33 @@ from PIL import Image, ImageTk
 from .game import HUMAN, ROBOT
 import threading
 import chess
+
 robot_count = 0
 game_thread = None
+game_running = threading.Event()
+game_stopped = threading.Event()
+
+condition = threading.Condition()
+
+def _stop_game():
+    game_running.set()
+    if not game_thread:
+        return
+
+    while game_thread is not None or not game_stopped.is_set():
+        # Wait for game to finish
+        pass
+
+    game_thread = None
+    game_running.clear()
+    game_stopped.clear()
+
+    print('Stopped game...')
+
+def stop_game():
+    thread = threading.Thread(target=_stop_game)
+    thread.start()
+    return thread
 
 def update_robot_win_count():
     global robot_count
@@ -123,13 +148,15 @@ def start_button():
     button.place(x=x, y=y)
 
 def chess_engine_thread():
-    while True:
+    stop_game.join()
+
+    while game_running.is_set():
         state = game.check_game_over()
         root.after(0, update_turn)
 
         if state != "*":
             root.after(0, win_lose_msg)
-            return
+            break
     
         valid_move = None
 
@@ -137,6 +164,8 @@ def chess_engine_thread():
             valid_move = game.robot_makes_move()
         elif game.player == HUMAN:
             valid_move = game.player_made_move()
+
+    game_stopped.set()
 
 
 #in level screen: game.depth=level
@@ -239,7 +268,7 @@ def win_lose_msg():
     game_over_image = ImageTk.PhotoImage(game_over_image)
     game_over_label = tk.Label(root, image=game_over_image, borderwidth=0)
     game_over_label.image = game_over_image
-    game_over_label.place(x=(screen_width - game_over_image.width()) // 2, y=(screen_height - game_over_image.height()) // 2 - 200)
+    game_over_label.place(x=(screen_width - game_over_image.width()) // 2, y=(screen_height - game_over_image.height()) // 2 )
 
     def display_win_lose_messages():
         image_path = None
@@ -262,11 +291,12 @@ def win_lose_msg():
                 image_path = "images/draw.png"
 
         if image_path:
+            game_over_label.destroy()
             win_lose_image = Image.open(image_path)
             win_lose_image = ImageTk.PhotoImage(win_lose_image)
             win_lose_label = tk.Label(root, image=win_lose_image, borderwidth=0)
             win_lose_label.image = win_lose_image
-            win_lose_label.place(x=(screen_width - win_lose_image.width()) // 2, y=(screen_height - win_lose_image.height()) // 2 + 100)
+            win_lose_label.place(x=(screen_width - win_lose_image.width()) // 2, y=(screen_height - win_lose_image.height()) // 2)
 
     root.after(2000, display_win_lose_messages)
 
