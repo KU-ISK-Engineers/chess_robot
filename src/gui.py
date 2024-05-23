@@ -4,6 +4,7 @@ from .game import HUMAN, ROBOT
 
 robot_count=0
 
+
 def update_robot_win_count():
     global robot_count
     read_robot_count_from_file()
@@ -96,13 +97,16 @@ def background():
     count_label.place(x=x4 + killcount.width() // 2 - 20, y=230)
     logo_widgets.append(count_label)
 
-#start_game: 
+#start_game: #start_game: 
 def start_button():
     global button
 
     clear_screen()
 
     def start_game():
+        game_screen(root)
+        #
+        #
         game_screen(root)
         #
         #
@@ -121,6 +125,8 @@ def start_button():
     button.place(x=x, y=y)
 
 
+
+#in level screen: game.depth=level
 
 #in level screen: game.depth=level
 def level_screen():
@@ -170,6 +176,9 @@ def level_screen():
 
 #in color screen/assign_color: game.board.perspective=color, game.reset_board()
  
+
+#in color screen/assign_color: game.board.perspective=color, game.reset_board()
+ 
 def color_screen():
     clear_screen()
 
@@ -196,6 +205,18 @@ def color_screen():
         button2.place(x=(screen_width - color2.width()) // 2, y=(screen_height - color2.height()) // 2 + 200)
     display_colors()
 
+def assign_color(selected_color):
+    if selected_color=='white':
+        game.board.perspective = chess.WHITE
+        game.reset_board()
+    elif selected_color=='black':
+        game.board.perspective = chess.BLACK
+        game.reset_board()
+    start_button()
+
+
+#win lose msg: determined from both game.board.perspective and game.check_game_over()
+def win_lose_msg():
 def assign_color(selected_color):
     if selected_color=='white':
         game.board.perspective = chess.WHITE
@@ -315,10 +336,40 @@ def game_screen(root):
 #shows whose move it is on screen
     def update_turn():
         if game.player==ROBOT:
+    resign = Image.open("images/resign.png")
+    resign = resign.resize((200, 100), Image.Resampling.LANCZOS)
+    resign = ImageTk.PhotoImage(resign)
+    resign_button = tk.Button(root, image=resign, command=lambda: resign_button_commands(), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
+    resign_button.image = resign
+    resign_button.place(x=screen_width - resign.width() - 50, y=screen_height - resign.height() - 50)
+
+    finished_move = Image.open("images/move_finished.png")
+    finished_move = finished_move.resize((300, 150), Image.Resampling.LANCZOS)
+    finished_move = ImageTk.PhotoImage(finished_move)
+    finished_button = tk.Button(root, image=finished_move, command=lambda: finished_functions(), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
+    finished_button.image = finished_move
+
+    resign = Image.open("images/resign.png")
+    resign = resign.resize((200, 100), Image.Resampling.LANCZOS)
+    resign = ImageTk.PhotoImage(resign)
+    resign_button = tk.Button(root, image=resign, command=lambda: resign_button_commands(), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
+    resign_button.image = resign
+    resign_button.place(x=screen_width - resign.width() - 50, y=screen_height - resign.height() - 50)
+
+    finished_move = Image.open("images/move_finished.png")
+    finished_move = finished_move.resize((300, 150), Image.Resampling.LANCZOS)
+    finished_move = ImageTk.PhotoImage(finished_move)
+    finished_button = tk.Button(root, image=finished_move, command=lambda: finished_functions(), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
+    finished_button.image = finished_move
+
+#shows whose move it is on screen
+    def update_turn():
+        if game.player==ROBOT:
             robot_label.config(image=robot_turn_active)
             robot_label.image = robot_turn_active
             user_label.config(image=your_turn_inactive)
             user_label.image = your_turn_inactive
+        elif game.player==HUMAN:
         elif game.player==HUMAN:
             robot_label.config(image=robot_turn_inactive)
             robot_label.image = robot_turn_inactive
@@ -332,6 +383,10 @@ def game_screen(root):
         level_screen()
         update_robot_win_count()
 
+    #when HUMAN move is finishedand button clicked game.player becomes ROBOT
+    def finished_functions():
+        game.player==ROBOT
+        update_turn()
     #when HUMAN move is finishedand button clicked game.player becomes ROBOT
     def finished_functions():
         game.player==ROBOT
@@ -362,10 +417,12 @@ def game_screen(root):
                 update_turn('user')
     elif game.player == ROBOT:
         if game.robot_makes_move():
+        if game.robot_makes_move():
             update_turn('user')
         else:
-             print('error') 
+             print('error')  
 '''
+    
     
 
 
@@ -375,8 +432,15 @@ def gui_main(game_obj):
 
     read_robot_count_from_file()
 
+
+    read_robot_count_from_file()
+
     root = tk.Tk()
     root.configure(bg="#FFFFFF")
+
+    root.attributes('-fullscreen', True)
+    root.attributes('-type', 'splash')
+
 
     root.attributes('-fullscreen', True)
     root.attributes('-type', 'splash')
