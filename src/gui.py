@@ -16,6 +16,7 @@ def _stop_game():
 
     game_running.set()
     if not game_thread:
+        game_running.clear()
         return
 
     while game_thread is not None or not game_stopped.is_set():
@@ -24,7 +25,6 @@ def _stop_game():
 
     game_thread = None
     game_running.clear()
-    game_stopped.clear()
 
     print('Stopped game...')
 
@@ -151,8 +151,10 @@ def start_button():
 
 def chess_engine_thread():
     global game_running, game_stopped
-    
+
+    game_stopped.set()
     stop_game().join()
+    game_stopped.clear()
 
     while game_running.is_set():
         state = game.check_game_over()
@@ -171,6 +173,7 @@ def chess_engine_thread():
 
     game_stopped.set()
     stop_game().join()
+    game_stopped.clear()
 
 
 #in level screen: game.depth=level
