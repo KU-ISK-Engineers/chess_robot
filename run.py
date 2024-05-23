@@ -50,7 +50,9 @@ def true_main():
 
         game = Game(detection, engine)
 
-        test_game(game)
+        #test_game(game)
+
+        gui_main(game)
 
     except Exception as e:
         logging.exception(e)
