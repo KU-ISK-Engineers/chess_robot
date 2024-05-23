@@ -274,6 +274,10 @@ def win_lose_msg():
     def display_win_lose_messages():
         image_path = None
         state = game.check_game_over()
+
+        if state == "resigned":
+            return update_robot_win_count()
+
         if game.board.perspective==chess.WHITE:
             if state == "1-0":
                 image_path = "images/you_won.png"
