@@ -127,7 +127,7 @@ def chess_engine_thread():
         state = game.check_game_over()
         root.after(0, update_turn)
 
-        if state != "*":
+        if not state or state != "*":
             root.after(0, win_lose_msg)
     
         valid_move = None
@@ -234,7 +234,7 @@ def win_lose_msg():
     back_button.image = back
     back_button.place(x=(screen_width - back.width()) // 2, y=screen_height - back.height() - 50)
 
-    game_over_image = Image.open("gui/images/game_over.png")
+    game_over_image = Image.open("images/game_over.png")
     game_over_image = ImageTk.PhotoImage(game_over_image)
     game_over_label = tk.Label(root, image=game_over_image, borderwidth=0)
     game_over_label.image = game_over_image
