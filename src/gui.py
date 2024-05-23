@@ -14,17 +14,17 @@ condition = threading.Condition()
 def _stop_game():
     global game_thread, game_running, game_stopped
 
-    game_running.set()
+    game_stopped.set()
     if not game_thread:
-        game_running.clear()
+        game_stopped.clear()
         return
 
-    while game_thread is not None or not game_stopped.is_set():
+    while game_thread is not None or not game_running.is_set():
         # Wait for game to finish
         pass
 
     game_thread = None
-    game_running.clear()
+    game_stopped.clear()
 
     print('Stopped game...')
 
@@ -151,12 +151,11 @@ def start_button():
 
 def chess_engine_thread():
     global game_running, game_stopped
-
-    game_stopped.set()
     stop_game().join()
-    game_stopped.clear()
 
-    while game_running.is_set():
+    game_running.set()
+
+    while not game_stopped.is_set():
         state = game.check_game_over()
         root.after(0, update_turn)
 
@@ -171,9 +170,8 @@ def chess_engine_thread():
         elif game.player == HUMAN:
             valid_move = game.player_made_move()
 
-    game_stopped.set()
     stop_game().join()
-    game_stopped.clear()
+    game_running.clear()
 
 
 #in level screen: game.depth=level
