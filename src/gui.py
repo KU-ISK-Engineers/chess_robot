@@ -6,32 +6,6 @@ import chess
 
 robot_count = 0
 game_thread = None
-game_running = threading.Event()
-game_stopped = threading.Event()
-
-condition = threading.Condition()
-
-def _stop_game():
-    global game_thread, game_running, game_stopped
-
-    game_stopped.set()
-    if not game_thread:
-        game_stopped.clear()
-        return
-
-    while game_running.is_set():
-        # Wait for game to finish
-        pass
-
-    game_thread = None
-    game_stopped.clear()
-
-    print('Stopped game...')
-
-def stop_game():
-    thread = threading.Thread(target=_stop_game)
-    thread.start()
-    return thread
 
 def update_robot_win_count():
     global robot_count
@@ -150,16 +124,12 @@ def start_button():
     button.place(x=x, y=y)
 
 def chess_engine_thread():
-    global game_running, game_stopped
-    stop_game().join()
-
-    game_running.set()
-
-    while not game_stopped.is_set():
+    while True:
         state = game.check_game_over()
         root.after(0, update_turn)
 
-        if state != "*":
+        if state != "*" or state == "resigned":
+            print('Stopping game')
             root.after(0, win_lose_msg)
             break
     
@@ -169,10 +139,6 @@ def chess_engine_thread():
             valid_move = game.robot_makes_move()
         elif game.player == HUMAN:
             valid_move = game.player_made_move()
-
-    stop_game().join()
-    game_running.clear()
-
 
 #in level screen: game.depth=level
 def level_screen():
