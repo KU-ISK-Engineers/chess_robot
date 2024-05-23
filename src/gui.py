@@ -148,7 +148,7 @@ def start_button():
     button.place(x=x, y=y)
 
 def chess_engine_thread():
-    stop_game.join()
+    stop_game().join()
 
     while game_running.is_set():
         state = game.check_game_over()
@@ -166,6 +166,7 @@ def chess_engine_thread():
             valid_move = game.player_made_move()
 
     game_stopped.set()
+    stop_game().join()
 
 
 #in level screen: game.depth=level
