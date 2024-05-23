@@ -19,7 +19,7 @@ def _stop_game():
         game_stopped.clear()
         return
 
-    while game_thread is not None or not game_running.is_set():
+    while game_running.is_set():
         # Wait for game to finish
         pass
 
@@ -281,24 +281,25 @@ def win_lose_msg():
         state = game.check_game_over()
 
         if state == "resigned":
-            return update_robot_win_count()
-
-        if game.board.perspective==chess.WHITE:
-            if state == "1-0":
-                image_path = "images/you_won.png"
-            elif state == "0-1":
-                image_path = "images/you_lose.png"
-                update_robot_win_count()
-            elif state == "1/2-1/2":
-                image_path = "images/draw.png"
-        elif game.board.perspective==chess.BLACK:
-            if state == "1-0":
-                image_path = "images/you_lose.png"
-                update_robot_win_count()
-            elif state == "0-1":
-                image_path = "images/you_won.png"
-            elif state == "1/2-1/2":
-                image_path = "images/draw.png"
+            image_path = "images/you_lose.png"
+            update_robot_win_count()
+        else:
+            if game.board.perspective==chess.WHITE:
+                if state == "1-0":
+                    image_path = "images/you_won.png"
+                elif state == "0-1":
+                    image_path = "images/you_lose.png"
+                    update_robot_win_count()
+                elif state == "1/2-1/2":
+                    image_path = "images/draw.png"
+            elif game.board.perspective==chess.BLACK:
+                if state == "1-0":
+                    image_path = "images/you_lose.png"
+                    update_robot_win_count()
+                elif state == "0-1":
+                    image_path = "images/you_won.png"
+                elif state == "1/2-1/2":
+                    image_path = "images/draw.png"
 
         if image_path:
             game_over_label.destroy()
