@@ -130,7 +130,6 @@ def chess_engine_thread():
 
         if state != "*" or state == "resigned":
             print('Stopping game')
-            root.after(0, win_lose_msg)
             break
     
         valid_move = None
@@ -295,7 +294,6 @@ def resign_button_commands():
     game.resign_player()
     clear_screen()
     win_lose_msg()
-    update_robot_win_count()
     
     #when HUMAN move is finished and button clicked game.player becomes ROBOT
 def finished_functions():
