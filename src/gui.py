@@ -292,9 +292,11 @@ def update_turn():
         #finished_button.place(x=(screen_width - finished_button.winfo_width()) // 2, y=650)
 
 def resign_button_commands():
+    game.resign_player()
     clear_screen()
     win_lose_msg()
-
+    update_robot_win_count()
+    
     #when HUMAN move is finished and button clicked game.player becomes ROBOT
 def finished_functions():
     game.player==ROBOT
