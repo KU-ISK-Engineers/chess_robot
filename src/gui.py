@@ -1,9 +1,10 @@
 import tkinter as tk
 from PIL import Image, ImageTk
 from .game import HUMAN, ROBOT
-
-robot_count=0
-
+import threading
+import chess
+robot_count = 0
+game_thread = None
 
 def update_robot_win_count():
     global robot_count
@@ -11,6 +12,7 @@ def update_robot_win_count():
     robot_count += 1
     write_robot_count_to_file()
     update_count_label()
+
 
 def write_robot_count_to_file():
     global robot_count
@@ -97,7 +99,7 @@ def background():
     count_label.place(x=x4 + killcount.width() // 2 - 20, y=230)
     logo_widgets.append(count_label)
 
-#start_game: #start_game: 
+#start_game: game_screen and a thread for game
 def start_button():
     global button
 
@@ -105,11 +107,7 @@ def start_button():
 
     def start_game():
         game_screen(root)
-        #
-        #
-        game_screen(root)
-        #
-        #
+  
 
     screen_width = root.winfo_screenwidth()
     screen_height = root.winfo_screenheight()
@@ -124,9 +122,21 @@ def start_button():
 
     button.place(x=x, y=y)
 
+def chess_engine_thread():
+    while True:
+        state = game.check_game_over()
+        root.after(0, update_turn)
 
+        if state != "*":
+            root.after(0, win_lose_msg)
+    
+        valid_move = None
 
-#in level screen: game.depth=level
+        if game.player == ROBOT:
+            valid_move = game.robot_makes_move()
+        elif game.player == HUMAN:
+            valid_move = game.player_made_move()
+
 
 #in level screen: game.depth=level
 def level_screen():
@@ -168,13 +178,10 @@ def level_screen():
         level3_button.image = level3_img
         level3_button.place(x=(screen_width - level3_img.width()) // 2, y=(screen_height - choose_level.height()) // 2 + 200)
 
-        level4_button = tk.Button(root, image=level4_img, command=lambda: select_level(20), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
+        level4_button = tk.Button(root, image=level4_img, command=lambda: select_level(10), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
         level4_button.image = level4_img
         level4_button.place(x=(screen_width - level4_img.width()) // 2, y=(screen_height - choose_level.height()) // 2 + 325)
     display_levels()
- 
-
-#in color screen/assign_color: game.board.perspective=color, game.reset_board()
  
 
 #in color screen/assign_color: game.board.perspective=color, game.reset_board()
@@ -207,23 +214,9 @@ def color_screen():
 
 def assign_color(selected_color):
     if selected_color=='white':
-        game.board.perspective = chess.WHITE
-        game.reset_board()
+        game.reset_board(perspective=chess.WHITE)
     elif selected_color=='black':
-        game.board.perspective = chess.BLACK
-        game.reset_board()
-    start_button()
-
-
-#win lose msg: determined from both game.board.perspective and game.check_game_over()
-def win_lose_msg():
-def assign_color(selected_color):
-    if selected_color=='white':
-        game.board.perspective = chess.WHITE
-        game.reset_board()
-    elif selected_color=='black':
-        game.board.perspective = chess.BLACK
-        game.reset_board()
+        game.reset_board(perspective=chess.BLACK)
     start_button()
 
 
@@ -249,21 +242,22 @@ def win_lose_msg():
 
     def display_win_lose_messages():
         image_path = None
+        state = game.check_game_over()
         if game.board.perspective==chess.WHITE:
-            if game.check_game_over() == "1-0":
+            if state == "1-0":
                 image_path = "images/you_won.png"
-            elif game.check_game_over() == "0-1":
+            elif state == "0-1":
                 image_path = "images/you_lose.png"
                 update_robot_win_count()
-            elif game.check_game_over() == "1/2-1/2":
+            elif state == "1/2-1/2":
                 image_path = "images/draw.png"
         elif game.board.perspective==chess.BLACK:
-            if game.check_game_over() == "1-0":
+            if state == "1-0":
                 image_path = "images/you_lose.png"
                 update_robot_win_count()
-            elif game.check_game_over() == "0-1":
+            elif state == "0-1":
                 image_path = "images/you_won.png"
-            elif game.check_game_over() == "1/2-1/2":
+            elif state == "1/2-1/2":
                 image_path = "images/draw.png"
 
         if image_path:
@@ -275,12 +269,39 @@ def win_lose_msg():
 
     root.after(2000, display_win_lose_messages)
 
+def update_turn():
+    """ who plays right now """
+    if game.player == ROBOT:
+        robot_label.config(image=robot_turn_active)
+        robot_label.image = robot_turn_active
+        user_label.config(image=your_turn_inactive)
+        user_label.image = your_turn_inactive
+    elif game.player == HUMAN:
+        robot_label.config(image=robot_turn_inactive)
+        robot_label.image = robot_turn_inactive
+        user_label.config(image=your_turn_active)
+        user_label.image = your_turn_active
+        #finished_button.place(x=(screen_width - finished_button.winfo_width()) // 2, y=650)
+
+def resign_button_commands():
+    clear_screen()
+    level_screen()
+    update_robot_win_count()
+
+    #when HUMAN move is finished and button clicked game.player becomes ROBOT
+def finished_functions():
+    game.player==ROBOT
+    update_turn()
+    #finished_button.destroy()
+
+#resign/ finished buttons
 def game_screen(root):
     clear_screen()
     #screen setup
     screen_width = root.winfo_screenwidth()
     screen_height = root.winfo_screenheight()
 
+    global robot_label, user_label, robot_turn_active,your_turn_inactive, robot_turn_inactive,your_turn_active
     turns = Image.open("images/turns.png")
     robot_turn_active = Image.open("images/robot_turn_active.png")
     robot_turn_inactive = Image.open("images/robot_turn_inactive.png")
@@ -314,116 +335,15 @@ def game_screen(root):
     resign_button.image = resign
     resign_button.place(x=screen_width - resign.width() - 50, y=screen_height - resign.height() - 50)
 
-    finished_move = Image.open("images/move_finished.png")
-    finished_move = finished_move.resize((300, 150), Image.Resampling.LANCZOS)
-    finished_move = ImageTk.PhotoImage(finished_move)
-    finished_button = tk.Button(root, image=finished_move, command=lambda: finished_functions(), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
-    finished_button.image = finished_move
+    # finished_move = Image.open("images/move_finished.png")
+    # finished_move = finished_move.resize((300, 150), Image.Resampling.LANCZOS)
+    # finished_move = ImageTk.PhotoImage(finished_move)
+    # finished_button = tk.Button(root, image=finished_move, command=lambda: finished_functions(), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
+    # finished_button.image = finished_move
 
-    resign = Image.open("images/resign.png")
-    resign = resign.resize((200, 100), Image.Resampling.LANCZOS)
-    resign = ImageTk.PhotoImage(resign)
-    resign_button = tk.Button(root, image=resign, command=lambda: resign_button_commands(), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
-    resign_button.image = resign
-    resign_button.place(x=screen_width - resign.width() - 50, y=screen_height - resign.height() - 50)
+    game_thread = threading.Thread(target=chess_engine_thread)
+    game_thread.start()
 
-    finished_move = Image.open("images/move_finished.png")
-    finished_move = finished_move.resize((300, 150), Image.Resampling.LANCZOS)
-    finished_move = ImageTk.PhotoImage(finished_move)
-    finished_button = tk.Button(root, image=finished_move, command=lambda: finished_functions(), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
-    finished_button.image = finished_move
-
-#shows whose move it is on screen
-    def update_turn():
-        if game.player==ROBOT:
-    resign = Image.open("images/resign.png")
-    resign = resign.resize((200, 100), Image.Resampling.LANCZOS)
-    resign = ImageTk.PhotoImage(resign)
-    resign_button = tk.Button(root, image=resign, command=lambda: resign_button_commands(), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
-    resign_button.image = resign
-    resign_button.place(x=screen_width - resign.width() - 50, y=screen_height - resign.height() - 50)
-
-    finished_move = Image.open("images/move_finished.png")
-    finished_move = finished_move.resize((300, 150), Image.Resampling.LANCZOS)
-    finished_move = ImageTk.PhotoImage(finished_move)
-    finished_button = tk.Button(root, image=finished_move, command=lambda: finished_functions(), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
-    finished_button.image = finished_move
-
-    resign = Image.open("images/resign.png")
-    resign = resign.resize((200, 100), Image.Resampling.LANCZOS)
-    resign = ImageTk.PhotoImage(resign)
-    resign_button = tk.Button(root, image=resign, command=lambda: resign_button_commands(), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
-    resign_button.image = resign
-    resign_button.place(x=screen_width - resign.width() - 50, y=screen_height - resign.height() - 50)
-
-    finished_move = Image.open("images/move_finished.png")
-    finished_move = finished_move.resize((300, 150), Image.Resampling.LANCZOS)
-    finished_move = ImageTk.PhotoImage(finished_move)
-    finished_button = tk.Button(root, image=finished_move, command=lambda: finished_functions(), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
-    finished_button.image = finished_move
-
-#shows whose move it is on screen
-    def update_turn():
-        if game.player==ROBOT:
-            robot_label.config(image=robot_turn_active)
-            robot_label.image = robot_turn_active
-            user_label.config(image=your_turn_inactive)
-            user_label.image = your_turn_inactive
-        elif game.player==HUMAN:
-        elif game.player==HUMAN:
-            robot_label.config(image=robot_turn_inactive)
-            robot_label.image = robot_turn_inactive
-            user_label.config(image=your_turn_active)
-            user_label.image = your_turn_active
-            screen_width = root.winfo_screenwidth()
-            finished_button.place(x=(screen_width - finished_button.winfo_width()) // 2, y=650)
-        
-    def resign_button_commands():
-        clear_screen()
-        level_screen()
-        update_robot_win_count()
-
-    #when HUMAN move is finishedand button clicked game.player becomes ROBOT
-    def finished_functions():
-        game.player==ROBOT
-        update_turn()
-    #when HUMAN move is finishedand button clicked game.player becomes ROBOT
-    def finished_functions():
-        game.player==ROBOT
-        update_turn()
-        finished_button.destroy()
-
-    #win_lose_msg()
-'''
-    def check_game_state():
-        if board.is_game_over():
-            win_lose_msg()
-        else:
-            if board.turn == chess.board.perspective:
-                update_turn('user')
-            else:
-                update_turn('robot')
-            root.after(1000, check_game_state)  # Check again in 1 second
-    if game.player == HUMAN:
-            if game.player_made_move():
-                update_turn('robot')
-            else:
-                invalid_move= Image.open("images/invalid_move.png")
-                invalid_move = ImageTk.PhotoImage(invalid_move)
-                invalid_label = tk.Label(root, image=invalid_move, borderwidth=0, bg="#FFFFFF")
-                invalid_label.image = invalid_move
-                invalid_label.place(x=800, y=600)
-                root.after(3000, lambda: invalid_label.destroy())
-                update_turn('user')
-    elif game.player == ROBOT:
-        if game.robot_makes_move():
-        if game.robot_makes_move():
-            update_turn('user')
-        else:
-             print('error')  
-'''
-    
-    
 
 
 def gui_main(game_obj):
@@ -432,15 +352,8 @@ def gui_main(game_obj):
 
     read_robot_count_from_file()
 
-
-    read_robot_count_from_file()
-
     root = tk.Tk()
     root.configure(bg="#FFFFFF")
-
-    root.attributes('-fullscreen', True)
-    root.attributes('-type', 'splash')
-
 
     root.attributes('-fullscreen', True)
     root.attributes('-type', 'splash')
