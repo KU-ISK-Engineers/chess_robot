@@ -34,16 +34,12 @@ class Game:
     def reset_board(self, 
                     perspective: chess.Color, 
                     move_pieces: bool = False):
-        self.board = BoardWithOffsets(perspective=perspective)
-
         if move_pieces:
-            current_board = self.detection.capture_board(perspective=perspective)
-
-            response = movement.reset_board(current_board, self.board)
+            response = self._reshape_board(self.board.chess_board, self.board.perspective)
             if response != communication.RESPONSE_SUCCESS:
                 raise RuntimeError("Robot hand timed out")
-            
-            self.board = current_board
+        else:
+            self.board = BoardWithOffsets(perspective=perspective)
 
         if self.board.perspective == chess.WHITE:
             self.player = HUMAN
@@ -78,6 +74,7 @@ class Game:
         
         self.player = HUMAN
         self.board.push(move)
+        self._update_move()
         return move
     
     def chess_board(self) -> chess.Board:
@@ -96,6 +93,7 @@ class Game:
         
         self.player = ROBOT
         self.board.push(move, to_offset=new_board.offset(move.to_square))
+        self._update_move()
         return move
 
     def validate_move(self, move: Optional[chess.Move]) -> bool:
@@ -113,15 +111,22 @@ class Game:
     
     def _reshape_board(self, expected_board: chess.Board, perspective: chess.Color):
         done = False
+        current_board = self.detection.capture_board(perspective=perspective)
 
         while not done:
             current_board = self.detection.capture_board(perspective=perspective)
             response, done = movement.reset_board_v2(current_board, expected_board, perspective)
             if response != communication.RESPONSE_SUCCESS:
                 return response
-            
+
+        self.board.chess_board = current_board.chess_board
+        self.board.offsets = current_board.offsets
+
         return communication.RESPONSE_SUCCESS
 
+    def _update_move(self):
+        if self.board.chess_board.is_game_over():
+            communication.issue_command("99 99 99 99")
     
 def boards_are_equal(board1: chess.Board, board2: chess.Board) -> bool:
     for square in chess.SQUARES:
