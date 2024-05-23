@@ -27,6 +27,7 @@ class Game:
 
         self.board = None
         self.player = None
+        self.resigned = False
 
         self.reset_board(perspective, move_pieces=move_pieces)
 
@@ -48,6 +49,8 @@ class Game:
             self.player = HUMAN
         else:
             self.player = ROBOT
+
+        self.resigned = False
 
     def robot_makes_move(self, move: Optional[chess.Move] = None) -> Optional[chess.Move]:
         visualise_chessboard(self.board)
@@ -100,7 +103,16 @@ class Game:
     
     def check_game_over(self) -> str:
         """Check if the game is over and return the result."""
-        return self.board.chess_board.result()
+        if not self.resigned:
+            return self.board.chess_board.result()
+        
+        if self.board.perspective == chess.WHITE:
+            return "0-1"
+        else:
+            return "1-0"
+    
+    def resign_player(self):
+        self.resigned = True
     
     def _reshape_board(self, expected_board: chess.Board, perspective: chess.Color):
         done = False

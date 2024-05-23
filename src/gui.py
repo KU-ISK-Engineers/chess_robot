@@ -286,8 +286,7 @@ def update_turn():
 
 def resign_button_commands():
     clear_screen()
-    level_screen()
-    update_robot_win_count()
+    win_lose_msg()
 
     #when HUMAN move is finished and button clicked game.player becomes ROBOT
 def finished_functions():
