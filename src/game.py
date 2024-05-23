@@ -104,6 +104,18 @@ class Game:
             return self.board.chess_board.result()
         return None
     
+    def _reshape_board(self, expected_board: chess.Board, perspective: chess.Color):
+        done = False
+
+        while not done:
+            current_board = self.detection.capture_board(perspective=perspective)
+            response, done = movement.reset_board_v2(current_board, expected_board, perspective)
+            if response != communication.RESPONSE_SUCCESS:
+                return response
+            
+        return communication.RESPONSE_SUCCESS
+
+    
 def boards_are_equal(board1: chess.Board, board2: chess.Board) -> bool:
     for square in chess.SQUARES:
         if board1.piece_at(square) != board2.piece_at(square):

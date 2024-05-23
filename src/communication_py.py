@@ -84,6 +84,7 @@ def issue_command(command, timeout_max=DELAY_TIMEOUT_MAX_S):
     robot_socket.settimeout(DELAY_TIMEOUT_MAX_S)
     robot_socket.connect((ip_address, port))
     logging.info(f"Connected to {ip_address}:{port}")
+    logging.info(f"Sending command {command}...")
     
     # Convert command to a space-separated string and encode to bytes
     message = command.encode('utf-8')
@@ -99,8 +100,10 @@ def issue_command(command, timeout_max=DELAY_TIMEOUT_MAX_S):
             if response:
                 decoded_response = response.decode('utf-8').strip()
                 if decoded_response == "success":
+                    logging.info("Response success")
                     return RESPONSE_SUCCESS
                 else:
+                    logging.info("Response timeout")
                     return RESPONSE_TIMEOUT
         except socket.timeout:
             pass  # Continue waiting until timeout_max

@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional
+from typing import List, Optional, Tuple
 import chess
 import time
 from . import communication
@@ -157,12 +157,81 @@ def reset_board(board: BoardWithOffsets, expected_board: Optional[chess.Board] =
     if perspective is not None:
         board.perspective = perspective
 
-    # TODO: Adjust offsets if perspective has changed
-    if board.perspective != perspective:
-        # Implement logic to adjust offsets based on the new perspective
-        pass
-
     return communication.RESPONSE_SUCCESS
+
+# TODO: Check offsets, flip board if perspectives differ
+def reset_board_v2(board: BoardWithOffsets, expected_board: Optional[chess.Board] = None, perspective: Optional[chess.Color] = None) -> Tuple[int, bool]:
+    """
+    Resets the board to match the expected_board configuration.
+    If no expected_board is provided, it resets to the default chess starting position.
+    If perspective is provided, adjusts the perspective accordingly.
+    """
+    if expected_board is None:
+        expected_board = chess.Board()
+
+    # Create mappings for current and expected piece positions
+    current_positions = {square: board.piece_at(square) for square in chess.SQUARES if board.piece_at(square)}
+    expected_positions = {square: expected_board.piece_at(square) for square in chess.SQUARES if expected_board.piece_at(square)}
+
+    # Find pieces that are correctly placed, to avoid unnecessary moves
+    correctly_placed = {square: piece for square, piece in expected_positions.items() if current_positions.get(square) == piece}
+
+    # Remove correctly placed pieces from current and expected mappings
+    for square in list(correctly_placed.keys()):
+        current_positions.pop(square, None)
+        expected_positions.pop(square, None)
+
+    # Use list to track empty squares on the board
+    empty_squares = [square for square in chess.SQUARES if square not in current_positions and square not in expected_positions]
+
+    # Helper function to move a piece and update mappings
+    def move_piece_and_update(start_square: chess.Square, end_square: chess.Square) -> int:
+        piece = board.piece_at(start_square)
+        response = move_piece(board, start_square, end_square)
+        if response != communication.RESPONSE_SUCCESS:
+            return response
+
+        current_positions.pop(start_square)
+        current_positions[end_square] = piece
+
+        if end_square in expected_positions and expected_positions[end_square] == piece:
+            expected_positions.pop(end_square)
+
+        return communication.RESPONSE_SUCCESS
+
+    # First pass: move pieces directly to their target positions if possible
+    for square, piece in list(expected_positions.items()):
+        if piece in current_positions.values():
+            for start_square, current_piece in list(current_positions.items()):
+                if current_piece == piece:
+                    response = move_piece_and_update(start_square, square)
+                    return response, False
+
+    # Second pass: move remaining pieces out of the way, using empty squares as intermediate holding spots
+    for start_square, piece in list(current_positions.items()):
+        if piece not in expected_positions.values():
+            if empty_squares:
+                temp_square = empty_squares.pop(0)
+                response = move_piece_and_update(start_square, temp_square)
+                return response, False
+
+    # Third pass: place pieces in their final positions from temporary spots or off-board
+    for square, piece in list(expected_positions.items()):
+        origin_square = None
+        for temp_square, current_piece in list(current_positions.items()):
+            if current_piece == piece:
+                origin_square = temp_square
+                break
+        if origin_square is None:
+            origin_square = communication.off_board_square(piece.piece_type, piece.color)
+        response = move_piece_and_update(origin_square, square)
+        return response, False
+
+    board.chess_board = expected_board
+    if perspective is not None:
+        board.perspective = perspective
+
+    return communication.RESPONSE_SUCCESS, True
 
 def identify_move(prev_board: chess.Board, current_board: chess.Board) -> Optional[chess.Move]:
     """
@@ -197,8 +266,13 @@ def identify_move(prev_board: chess.Board, current_board: chess.Board) -> Option
         
         # Check for promotion
         if prev_board.piece_at(move.from_square).piece_type == chess.PAWN and chess.square_rank(move.to_square) in (0,7):
-            promotion_piece_type = current_board.piece_at(move.to_square).piece_type
-            move.promotion = promotion_piece_type
+            promotion_piece = current_board.piece_at(move.to_square)
+
+            # Validate promotion piece
+            if not promotion_piece or prev_board.piece_at(move.from_square).color != promotion_piece.color:
+                return None
+
+            move.promotion = promotion_piece.piece_type
 
         return move
 
