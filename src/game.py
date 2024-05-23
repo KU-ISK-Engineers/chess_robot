@@ -98,11 +98,9 @@ class Game:
     def validate_move(self, move: Optional[chess.Move]) -> bool:
         return move in self.board.legal_moves()
     
-    def check_game_over(self) -> Optional[str]:
+    def check_game_over(self) -> str:
         """Check if the game is over and return the result."""
-        if self.board.chess_board.is_game_over():
-            return self.board.chess_board.result()
-        return None
+        return self.board.chess_board.result()
     
     def _reshape_board(self, expected_board: chess.Board, perspective: chess.Color):
         done = False

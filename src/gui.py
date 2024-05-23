@@ -127,8 +127,9 @@ def chess_engine_thread():
         state = game.check_game_over()
         root.after(0, update_turn)
 
-        if not state or state != "*":
+        if state != "*":
             root.after(0, win_lose_msg)
+            return
     
         valid_move = None
 
