@@ -14,7 +14,7 @@ def reflect_move(board: BoardWithOffsets, move: chess.Move) -> int:
     from_square, to_square = (move.from_square, move.to_square)
 
     if board.chess_board.is_castling(move):
-        rook_move = _castle_rook_move(board, move)
+        rook_move = _castle_rook_move(board.chess_board, move)
 
         response = move_piece(board, from_square, to_square, response)
         response = move_piece(board, rook_move.from_square, rook_move.to_square, response)
