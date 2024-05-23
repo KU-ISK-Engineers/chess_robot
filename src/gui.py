@@ -189,6 +189,8 @@ def level_screen():
  
 def color_screen():
     clear_screen()
+    # black doesn't work yet
+    return assign_color("white")
 
     def display_colors():
         screen_width = root.winfo_screenwidth()
