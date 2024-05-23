@@ -12,6 +12,8 @@ game_stopped = threading.Event()
 condition = threading.Condition()
 
 def _stop_game():
+    global game_thread, game_running, game_stopped
+
     game_running.set()
     if not game_thread:
         return
@@ -148,6 +150,8 @@ def start_button():
     button.place(x=x, y=y)
 
 def chess_engine_thread():
+    global game_running, game_stopped
+    
     stop_game().join()
 
     while game_running.is_set():
@@ -376,6 +380,7 @@ def game_screen(root):
     # finished_button = tk.Button(root, image=finished_move, command=lambda: finished_functions(), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
     # finished_button.image = finished_move
 
+    global game_thread
     game_thread = threading.Thread(target=chess_engine_thread)
     game_thread.start()
 
