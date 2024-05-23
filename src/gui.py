@@ -1,5 +1,6 @@
 import tkinter as tk
 from PIL import Image, ImageTk
+from .game import HUMAN, ROBOT
 
 robot_count=0
 
@@ -167,7 +168,7 @@ def level_screen():
     display_levels()
  
 
-#in color screen: game.board.perspective=color, game.reset_board()
+#in color screen/assign_color: game.board.perspective=color, game.reset_board()
  
 def color_screen():
     clear_screen()
@@ -298,7 +299,20 @@ def game_screen(root):
     finished_button = tk.Button(root, image=finished_move, command=lambda: finished_functions(), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
     finished_button.image = finished_move
 
-#tik parodo, kieno ejimas
+    resign = Image.open("images/resign.png")
+    resign = resign.resize((200, 100), Image.Resampling.LANCZOS)
+    resign = ImageTk.PhotoImage(resign)
+    resign_button = tk.Button(root, image=resign, command=lambda: resign_button_commands(), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
+    resign_button.image = resign
+    resign_button.place(x=screen_width - resign.width() - 50, y=screen_height - resign.height() - 50)
+
+    finished_move = Image.open("images/move_finished.png")
+    finished_move = finished_move.resize((300, 150), Image.Resampling.LANCZOS)
+    finished_move = ImageTk.PhotoImage(finished_move)
+    finished_button = tk.Button(root, image=finished_move, command=lambda: finished_functions(), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
+    finished_button.image = finished_move
+
+#shows whose move it is on screen
     def update_turn():
         if game.player==ROBOT:
             robot_label.config(image=robot_turn_active)
@@ -335,7 +349,6 @@ def game_screen(root):
             else:
                 update_turn('robot')
             root.after(1000, check_game_state)  # Check again in 1 second
-
     if game.player == HUMAN:
             if game.player_made_move():
                 update_turn('robot')
