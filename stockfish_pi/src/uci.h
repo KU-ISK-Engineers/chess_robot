@@ -1,6 +1,6 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
-  Copyright (C) 2004-2024 The Stockfish developers (see AUTHORS file)
+  Copyright (C) 2004-2022 The Stockfish developers (see AUTHORS file)
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,59 +19,67 @@
 #ifndef UCI_H_INCLUDED
 #define UCI_H_INCLUDED
 
-#include <iostream>
+#include <map>
 #include <string>
-#include <unordered_map>
 
-#include "evaluate.h"
-#include "misc.h"
-#include "position.h"
-#include "thread.h"
-#include "tt.h"
-#include "ucioption.h"
+#include "types.h"
 
 namespace Stockfish {
 
-namespace Eval::NNUE {
-enum NetSize : int;
-}
+class Position;
 
-class Move;
-enum Square : int;
-using Value = int;
+namespace UCI {
 
-class UCI {
-   public:
-    UCI(int argc, char** argv);
+class Option;
 
-    void loop();
-
-    static int         to_cp(Value v);
-    static std::string value(Value v);
-    static std::string square(Square s);
-    static std::string move(Move m, bool chess960);
-    static std::string wdl(Value v, int ply);
-    static Move        to_move(const Position& pos, std::string& str);
-
-    const std::string& workingDirectory() const { return cli.workingDirectory; }
-
-    OptionsMap options;
-
-    std::unordered_map<Eval::NNUE::NetSize, Eval::EvalFile> evalFiles;
-
-   private:
-    TranspositionTable tt;
-    ThreadPool         threads;
-    CommandLine        cli;
-
-    void go(Position& pos, std::istringstream& is, StateListPtr& states);
-    void bench(Position& pos, std::istream& args, StateListPtr& states);
-    void position(Position& pos, std::istringstream& is, StateListPtr& states);
-    void trace_eval(Position& pos);
-    void search_clear();
-    void setoption(std::istringstream& is);
+/// Custom comparator because UCI options should be case insensitive
+struct CaseInsensitiveLess {
+  bool operator() (const std::string&, const std::string&) const;
 };
 
-}  // namespace Stockfish
+/// Our options container is actually a std::map
+typedef std::map<std::string, Option, CaseInsensitiveLess> OptionsMap;
 
-#endif  // #ifndef UCI_H_INCLUDED
+/// Option class implements an option as defined by UCI protocol
+class Option {
+
+  typedef void (*OnChange)(const Option&);
+
+public:
+  Option(OnChange = nullptr);
+  Option(bool v, OnChange = nullptr);
+  Option(const char* v, OnChange = nullptr);
+  Option(double v, int minv, int maxv, OnChange = nullptr);
+  Option(const char* v, const char* cur, OnChange = nullptr);
+
+  Option& operator=(const std::string&);
+  void operator<<(const Option&);
+  operator double() const;
+  operator std::string() const;
+  bool operator==(const char*) const;
+
+private:
+  friend std::ostream& operator<<(std::ostream&, const OptionsMap&);
+
+  std::string defaultValue, currentValue, type;
+  int min, max;
+  size_t idx;
+  OnChange on_change;
+};
+
+void init(OptionsMap&);
+void loop(int argc, char* argv[]);
+std::string value(Value v);
+std::string square(Square s);
+std::string move(Move m, bool chess960);
+std::string pv(const Position& pos, Depth depth, Value alpha, Value beta);
+std::string wdl(Value v, int ply);
+Move to_move(const Position& pos, std::string& str);
+
+} // namespace UCI
+
+extern UCI::OptionsMap Options;
+
+} // namespace Stockfish
+
+#endif // #ifndef UCI_H_INCLUDED

@@ -1,7 +1,7 @@
 import chess
 import chess.engine
 from typing import Optional
-
+import time
 from .camera import CameraDetection
 from . import movement
 from . import communication
@@ -30,6 +30,13 @@ class Game:
         self.resigned = False
 
         self.reset_board(perspective, move_pieces=move_pieces)
+        self.set_depth(depth)
+
+    def set_depth(self, depth: int = 4):
+        self.depth = depth
+        self.engine.configure({"Skill Level": depth})
+        #elo = int(300 + 200 * (depth - 1))
+        #self.engine.configure({"UCI_LimitStrength": True, "UCI_Elo": elo})
 
     def reset_board(self, 
                     perspective: chess.Color, 
@@ -47,6 +54,7 @@ class Game:
             self.player = ROBOT
 
         self.resigned = False
+        communication.issue_command("99 99 99 99")
 
     def robot_makes_move(self, move: Optional[chess.Move] = None) -> Optional[chess.Move]:
         visualise_chessboard(self.board)
@@ -83,18 +91,40 @@ class Game:
     def player_made_move(self) -> Optional[chess.Move]:
         visualise_chessboard(self.board)
 
+        move1, board1 = self._player_made_move()
+        if move1 is None:
+            return None
+
+        time.sleep(0.3)
+        move2, board2 = self._player_made_move()
+        if move2 is None:
+            return None
+
+        if move1 != move2:
+            return None
+
         """Assume player has already made a move"""
+        # prev_board = self.board
+        # new_board = self.detection.capture_board(perspective=self.board.perspective)
+        # move = movement.identify_move(prev_board.chess_board, new_board.chess_board)
+
+        #if not self.validate_move(move):
+        #    return None
+        
+        self.player = ROBOT
+        self.board.push(move1, to_offset=board1.offset(move1.to_square))
+        self._update_move()
+        return move1
+
+    def _player_made_move(self) -> Optional[chess.Move]:
         prev_board = self.board
         new_board = self.detection.capture_board(perspective=self.board.perspective)
         move = movement.identify_move(prev_board.chess_board, new_board.chess_board)
 
         if not self.validate_move(move):
-            return None
-        
-        self.player = ROBOT
-        self.board.push(move, to_offset=new_board.offset(move.to_square))
-        self._update_move()
-        return move
+            return None, None
+
+        return move, new_board
 
     def validate_move(self, move: Optional[chess.Move]) -> bool:
         return move in self.board.legal_moves()

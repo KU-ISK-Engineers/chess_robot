@@ -130,7 +130,7 @@ def chess_engine_thread():
 
         if state != "*" or state == "resigned":
             print('Stopping game')
-            break
+            return win_lose_msg()
     
         valid_move = None
 
@@ -147,7 +147,8 @@ def level_screen():
     screen_height = root.winfo_screenheight()
 
     def select_level(level_value):
-        game.depth = level_value
+        game.set_depth(level_value)
+        #game.depth = level_value
         clear_screen()
         color_screen()
     def display_levels():
@@ -167,11 +168,11 @@ def level_screen():
         level3_img = ImageTk.PhotoImage(level3_img)
         level4_img = ImageTk.PhotoImage(level4_img)
 
-        level1_button = tk.Button(root, image=level1_img, command=lambda: select_level(2), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
+        level1_button = tk.Button(root, image=level1_img, command=lambda: select_level(1), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
         level1_button.image = level1_img
         level1_button.place(x=(screen_width - level1_img.width()) // 2, y=(screen_height - choose_level.height()) // 2 - 50)
 
-        level2_button = tk.Button(root, image=level2_img, command=lambda: select_level(4), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
+        level2_button = tk.Button(root, image=level2_img, command=lambda: select_level(3), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
         level2_button.image = level2_img
         level2_button.place(x=(screen_width - level2_img.width()) // 2, y=(screen_height - choose_level.height()) // 2 + 75)
 
@@ -230,13 +231,6 @@ def win_lose_msg():
     screen_width = root.winfo_screenwidth()
     screen_height = root.winfo_screenheight()
 
-    back = Image.open("images/back.png")
-    back = back.resize((200, 100), Image.Resampling.LANCZOS)
-    back = ImageTk.PhotoImage(back)
-    back_button = tk.Button(root, image=back, command=lambda: level_screen(), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
-    back_button.image = back
-    back_button.place(x=(screen_width - back.width()) // 2, y=screen_height - back.height() - 50)
-
     game_over_image = Image.open("images/game_over.png")
     game_over_image = ImageTk.PhotoImage(game_over_image)
     game_over_label = tk.Label(root, image=game_over_image, borderwidth=0)
@@ -268,6 +262,14 @@ def win_lose_msg():
                 elif state == "1/2-1/2":
                     image_path = "images/draw.png"
 
+        back = Image.open("images/back.png")
+        back = back.resize((200, 100), Image.Resampling.LANCZOS)
+        back = ImageTk.PhotoImage(back)
+        back_button = tk.Button(root, image=back, command=lambda: level_screen(), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
+        back_button.image = back
+        back_button.place(x=(screen_width - back.width()) // 2, y=screen_height - back.height() - 50)
+
+
         if image_path:
             game_over_label.destroy()
             win_lose_image = Image.open(image_path)
@@ -294,8 +296,8 @@ def update_turn():
 
 def resign_button_commands():
     game.resign_player()
-    clear_screen()
-    win_lose_msg()
+    #clear_screen()
+    #win_lose_msg()
     
     #when HUMAN move is finished and button clicked game.player becomes ROBOT
 def finished_functions():

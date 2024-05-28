@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Chess2
+Comment=Atliktas ejimas
+Exec=bash /usr/local/bin/chess2
+Terminal=false
+X-MultipleArgs=false
+Type=Application
+Icon=/home/user/chess_robot_opencv/chess2icon.png
