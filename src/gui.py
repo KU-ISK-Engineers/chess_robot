@@ -148,7 +148,6 @@ def level_screen():
 
     def select_level(level_value):
         game.set_depth(level_value)
-        #game.depth = level_value
         clear_screen()
         color_screen()
     def display_levels():
@@ -221,7 +220,9 @@ def assign_color(selected_color):
         game.reset_board(perspective=chess.WHITE)
     elif selected_color=='black':
         game.reset_board(perspective=chess.BLACK)
-    start_button()
+    def start_game():                          #game starts after color selection
+        game_screen(root)
+    start_game()
 
 
 #win lose msg: determined from both game.board.perspective and game.check_game_over()
@@ -281,7 +282,7 @@ def win_lose_msg():
     root.after(2000, display_win_lose_messages)
 
 def update_turn():
-    """ who plays right now """
+    #who plays right now
     if game.player == ROBOT:
         robot_label.config(image=robot_turn_active)
         robot_label.image = robot_turn_active
