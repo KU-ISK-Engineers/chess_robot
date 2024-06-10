@@ -49,13 +49,13 @@ def help_screen():
     main_frame.pack(side="right", fill="both", expand=True)
 
     # List of images for buttons and corresponding videos
-    button_images = ["images/pawn_button.png", "images/rook_button.png", "images/knight_button.png", "images/bishop_button.png", "images/queen_button.png", "images/king_button.png"]
-    video_files = ["images/pawn_moves.mp4", "images/rook_moves.mp4", "images/knight_moves.mp4", "images/bishop_moves.mp4", "images/queen_moves.mp4", "images/king_moves.mp4"]
+    button_images = ["images/pawn_button.png", "images/rook_button.png", "images/knight_button.png", "images/bishop_button.png", "images/queen_button.png", "images/king_button.png", "images/other_button.png","images/main_rules_button.png"]
+    video_files = ["images/pawn_moves.mp4", "images/rook_moves.mp4", "images/knight_moves.mp4", "images/bishop_moves.mp4", "images/queen_moves.mp4", "images/king_moves.mp4", "images/other_moves.mp4", "images/main_rules.mp4"]
 
     # Create buttons with images in the left frame
     for i, button_image_path in enumerate(button_images):
         button_image = Image.open(button_image_path)
-        button_image = button_image.resize((200, 100), Image.Resampling.LANCZOS)
+        button_image = button_image.resize((200, 85), Image.Resampling.LANCZOS)
         button_image = ImageTk.PhotoImage(button_image)
         
         button = tk.Button(left_frame, image=button_image, command=lambda i=i: show_video(video_files[i]),borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
