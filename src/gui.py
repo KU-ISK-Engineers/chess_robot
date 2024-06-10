@@ -79,10 +79,6 @@ def show_video(video_path):
     current_player = tkvideo(video_path, video_label, loop=1, size=(video_size, video_size))
     current_player.play()
 
-    back_button_image = Image.open("images/back.png")
-    back_button_image = back_button_image.resize((50, 50), Image.Resampling.LANCZOS)
-    back_button_image = ImageTk.PhotoImage(back_button_image)
-
     # Back button
     back_button_image = Image.open("images/back.png")
     back_button_image = back_button_image.resize((100, 70), Image.Resampling.LANCZOS)
