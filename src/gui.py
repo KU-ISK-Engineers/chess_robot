@@ -35,6 +35,18 @@ def read_robot_count_from_file():
 def update_count_label():
     count_label.config(text=str(robot_count))
 
+def check_msg():
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+
+    image11 = Image.open("images/check_msg.png")
+    image11 = ImageTk.PhotoImage(image11)
+
+    label11 = tk.Label(root, image=image11, borderwidth=0, bg="#FFFFFF")
+    label11.image = image11
+    label11.place(x=screen_width/2-image11.width()/2, y=screen_height/2-image11.height()/2)
+    label11.after(3000, label11.destroy)
+    
     
 def help_screen():
     global main_frame, left_frame
