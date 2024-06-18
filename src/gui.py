@@ -47,7 +47,7 @@ def check_msg():
     label11.place(x=screen_width/2-image11.width()/2, y=screen_height/2-image11.height()/2)
     label11.after(3000, label11.destroy)
     
-    
+
 def help_screen():
     global main_frame, left_frame
     clear_screen()

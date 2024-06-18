@@ -2,10 +2,10 @@ import chess
 import chess.engine
 from typing import Optional
 import time
-from .camera import CameraDetection
+from ..scripts.camera import CameraDetection
 from . import movement
 from . import communication
-from .board import BoardWithOffsets
+from ..scripts.board import BoardWithOffsets
 from .detection import visualise_chessboard
 
 HUMAN = 0
