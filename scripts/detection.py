@@ -8,7 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
-from .board import BoardWithOffsets, SquareOffset, SQUARE_CENTER
+from ..src.board import BoardWithOffsets, SquareOffset, SQUARE_CENTER
 
 # Minimum piece detection confidence threshold
 THRESHOLD_CONFIDENCE = 0.5

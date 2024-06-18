@@ -3,7 +3,7 @@ from typing import List, Optional, Tuple
 import chess
 import time
 from . import communication
-from ..scripts.board import BoardWithOffsets, SQUARE_CENTER
+from .board import BoardWithOffsets, SQUARE_CENTER
 
 def reflect_move(board: BoardWithOffsets, move: chess.Move) -> int:
     """
@@ -356,7 +356,7 @@ def _is_en_passant(board, move):
 # ---- TESTING ---
 
 import sys
-from ..scripts.camera import CameraDetection
+from .camera import CameraDetection
 from ultralytics import YOLO
 from .detection import visualise_chessboard
 from pypylon import pylon

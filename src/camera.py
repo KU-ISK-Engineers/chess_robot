@@ -5,9 +5,9 @@ import chess
 from ultralytics import YOLO
 import numpy as np
 import time
-from ..scripts.aruco import detect_aruco_area
-from ..src.detection import image_to_board, visualise_chessboard
-from ..scripts.board import BoardWithOffsets
+from .aruco import detect_aruco_area
+from .detection import image_to_board, visualise_chessboard
+from .board import BoardWithOffsets
 
 class CameraDetection:
     def __init__(self, camera: pylon.InstantCamera, model: YOLO, timeout: int = 5000) -> None:

@@ -3,7 +3,7 @@ import time
 import chess
 import random
 import logging
-from .board import SquareOffset, SQUARE_CENTER
+from ..src.board import SquareOffset, SQUARE_CENTER
 
 OFF_BOARD_SQUARES = {
     (chess.ROOK, chess.WHITE): -1,

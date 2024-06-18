@@ -1,8 +1,8 @@
 from src.gui import gui_main
 from src.communication import setup_communication
-from scripts.camera import CameraDetection
+from src.camera import CameraDetection
 from src.game import Game, HUMAN, ROBOT
-from scripts.board import BoardWithOffsets
+from src.board import BoardWithOffsets
 from pypylon import pylon
 from ultralytics import YOLO
 import chess.engine
