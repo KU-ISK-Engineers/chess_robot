@@ -1,0 +1,8 @@
+chess==1.10.0
+matplotlib==3.9.0
+numpy==2.0.0
+opencv_python==4.10.0.84
+Pillow==10.3.0
+pypylon==3.0.1
+tkvideo==0.1
+ultralytics==8.2.35
