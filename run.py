@@ -30,7 +30,7 @@ def main():
         model = YOLO("chess_200.pt")
         camera = setup_camera()
 
-        engine = chess.engine.SimpleEngine.popen_uci("stockfish_pi/src/stockfish")
+        engine = chess.engine.SimpleEngine.popen_uci("stockfish")
 
         detection = CameraDetection(camera, model)
 
