@@ -6,13 +6,9 @@ from .camera import CameraDetection
 from . import movement
 from . import communication
 from .board import BoardWithOffsets
-from .detection import visualise_chessboard
 
 HUMAN = 0
 ROBOT = 1
-
-# TODO: Detect perspective, optional board, percentages
-# TODO: Detect initial position
 
 class Game:
     def __init__(self, 
@@ -35,8 +31,6 @@ class Game:
     def set_depth(self, depth: int = 4):
         self.depth = depth
         self.engine.configure({"Skill Level": depth})
-        #elo = int(300 + 200 * (depth - 1))
-        #self.engine.configure({"UCI_LimitStrength": True, "UCI_Elo": elo})
 
     def reset_board(self, 
                     perspective: chess.Color, 
@@ -54,11 +48,9 @@ class Game:
             self.player = ROBOT
 
         self.resigned = False
-        communication.issue_command("99 99 99 99")
+        communication.reset_board()
 
     def robot_makes_move(self, move: Optional[chess.Move] = None) -> Optional[chess.Move]:
-        visualise_chessboard(self.board)
-
         new_board = self.detection.capture_board(perspective=self.board.perspective)
         self.board.offsets = new_board.offsets
 
@@ -89,9 +81,7 @@ class Game:
         return self.board.chess_board
     
     def player_made_move(self) -> Optional[chess.Move]:
-        visualise_chessboard(self.board)
-
-        move1, board1 = self._player_made_move()
+        move1, _ = self._player_made_move()
         if move1 is None:
             return None
 
@@ -103,16 +93,8 @@ class Game:
         if move1 != move2:
             return None
 
-        """Assume player has already made a move"""
-        # prev_board = self.board
-        # new_board = self.detection.capture_board(perspective=self.board.perspective)
-        # move = movement.identify_move(prev_board.chess_board, new_board.chess_board)
-
-        #if not self.validate_move(move):
-        #    return None
-        
         self.player = ROBOT
-        self.board.push(move1, to_offset=board1.offset(move1.to_square))
+        self.board.push(move1, to_offset=board2.offset(move1.to_square))
         self._update_move()
         return move1
 
@@ -156,63 +138,10 @@ class Game:
 
     def _update_move(self):
         if self.board.chess_board.is_game_over():
-            communication.issue_command("99 99 99 99")
+            communication.reset_board()
     
 def boards_are_equal(board1: chess.Board, board2: chess.Board) -> bool:
     for square in chess.SQUARES:
         if board1.piece_at(square) != board2.piece_at(square):
             return False
     return True
-
-# ----- TESTING ---
-
-from ultralytics import YOLO
-from pypylon import pylon
-
-def setup_camera():
-    camera = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateFirstDevice())
-    camera.Open()
-
-    camera.AcquisitionFrameRateEnable.SetValue(True)
-    camera.AcquisitionFrameRate.SetValue(5)
-    camera.ExposureAuto.SetValue('Continuous')
-    camera.AcquisitionMode.SetValue("Continuous")
-    camera.PixelFormat.SetValue("RGB8")
-    camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
-
-    return camera
-
-def main():
-    # if len(sys.argv) != 2:
-    #     print("Usage: python script.py path_to_model")
-    #     sys.exit(1)
-
-    # model = YOLO(sys.argv[1])
-    model = YOLO("../training/chess_200.pt")
-    camera = setup_camera()
-
-    engine = chess.engine.SimpleEngine.popen_uci("../stockfish_pi/stockfish-android-armv8")
-
-    detection = CameraDetection(camera, model)
-
-    communication.setup_communication()
-
-    board = BoardWithOffsets()
-
-    game = Game(detection, engine, board)
-
-    while True:
-        if game.player == ROBOT:
-            move = game.robot_makes_move()
-            print(f"Robot made move: {move}")
-        else:
-            move = game.player_made_move()
-            print(f"Player made move: {move}")
-        
-        result = game.check_game_over()
-        if result:
-            print(f"Game over with result: {result}")
-            break
-
-if __name__ == "__main__":
-    main()

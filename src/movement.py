@@ -1,7 +1,6 @@
 import logging
 from typing import List, Optional, Tuple
 import chess
-import time
 from . import communication
 from .board import BoardWithOffsets, SQUARE_CENTER
 
@@ -352,91 +351,3 @@ def _is_en_passant(board, move):
         if abs(move.from_square - move.to_square) in (7, 9) and not board.piece_at(move.to_square):
             return True
     return False
-
-# ---- TESTING ---
-
-import sys
-from .camera import CameraDetection
-from ultralytics import YOLO
-from .detection import visualise_chessboard
-from pypylon import pylon
-import cv2
-
-def setup_camera():
-    camera = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateFirstDevice())
-    camera.Open()
-
-    camera.AcquisitionFrameRateEnable.SetValue(True)
-    camera.AcquisitionFrameRate.SetValue(5)
-    camera.ExposureAuto.SetValue('Continuous')
-    camera.AcquisitionMode.SetValue("Continuous")
-    camera.PixelFormat.SetValue("RGB8")
-    camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
-
-    return camera
-
-def main():
-    # if len(sys.argv) != 2:
-    #     print("Usage: python script.py path_to_model")
-    #     sys.exit(1)
-
-    # model = YOLO(sys.argv[1])
-    model = YOLO("../training/chess_200.pt")
-
-    camera = setup_camera()
-
-    detection = CameraDetection(camera, model)
-
-    prev_board = BoardWithOffsets(perspective=chess.BLACK)
-    print(prev_board)
-
-    communication.setup_communication()
-
-    while True:
-        #image = detection.capture_image()
-        board = detection.capture_board(perspective=chess.BLACK)
-        visualise_chessboard(board)
-
-        if prev_board:
-            move = identify_move(prev_board.chess_board, board.chess_board)
-
-            if not move:
-                continue
-            
-            print(move.uci())
-
-            if move not in prev_board.legal_moves():
-                pass
-                #print('Illegal move')
-            else:
-
-                visualize_move_with_arrow(prev_board, move, 'move_before.svg')
-                visualize_move_with_arrow(board, move, 'move_after.svg')
-
-                response = reflect_move(prev_board, move)
-                if response == communication.RESPONSE_SUCCESS:
-                    print('response Success')
-
-                    prev_board.push(move)
-                else:
-                    print('response fail')
-                    time.sleep(5)
-
-def visualize_move_with_arrow(board: BoardWithOffsets, move: chess.Move, filename: str):
-    """
-    Visualize a move on the chessboard with an arrow from the starting square to the ending square.
-    
-    :param board: The chess.Board object.
-    :param move_uci: The move in UCI format (e.g., "e2e4").
-    """
-    arrow = (move.from_square, move.to_square)
-    
-    # Display the board with the arrow
-    svg_before = chess.svg.board(board=board.chess_board, size=400, arrows=[arrow])
-
-    # Save the SVG image to a file
-    with open(filename, 'w') as f:
-        f.write(svg_before)
-
-if __name__ == "__main__":
-    main()

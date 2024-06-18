@@ -43,7 +43,6 @@ def find_rectangles(pts):
     return top_left_rect, top_right_rect, bottom_left_rect, bottom_right_rect
 
 
-# TODO: Move points out of this function, and put it in camera code crop function
 def sort_rectangle_points(points):
     # Calculate the centroid of the rectangle
     centroid = np.mean(points, axis=0)
@@ -97,11 +96,6 @@ def detect_aruco_area(image):
     corners, ids, rejected = cv2.aruco.detectMarkers(image, aruco_dict, parameters=aruco_params)
     
     if ids is not None and len(ids) == 4:
-        # Draw detected markers
-        #cv2.aruco.drawDetectedMarkers(image, corners, ids)
-
-        #print(corners)
-        
         # Collect all corner points
         all_points = []
         for corner in corners:

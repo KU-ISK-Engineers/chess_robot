@@ -6,7 +6,7 @@ from ultralytics import YOLO
 import numpy as np
 import time
 from .aruco import detect_aruco_area
-from .detection import image_to_board, visualise_chessboard
+from .detection import image_to_board
 from .board import BoardWithOffsets
 
 class CameraDetection:
@@ -81,43 +81,3 @@ def crop_image_by_area(image: cv2.Mat, area) -> cv2.Mat:
     warped = cv2.warpPerspective(image, M, (max_width, max_height))
     return warped
 
-
-# --- TESTING ---
-import sys
-
-def setup_camera():
-    camera = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateFirstDevice())
-    camera.Open()
-
-    camera.AcquisitionFrameRateEnable.SetValue(True)
-    camera.AcquisitionFrameRate.SetValue(5)
-    camera.ExposureAuto.SetValue('Continuous')
-    camera.AcquisitionMode.SetValue("Continuous")
-    camera.PixelFormat.SetValue("RGB8")
-    camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
-
-    return camera
-
-def main():
-    if len(sys.argv) != 2:
-        print("Usage: python script.py path_to_model")
-        sys.exit(1)
-
-    model = YOLO(sys.argv[1])
-    camera = setup_camera()
-
-    detection = CameraDetection(camera, model)
-
-    while True:
-        #image = detection.capture_image()
-        board = detection.capture_board(perspective=chess.BLACK)
-        visualise_chessboard(board)
-
-        # cv2.namedWindow('image', cv2.WINDOW_NORMAL)
-        # cv2.imshow('image', image)
-
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-if __name__ == "__main__":
-    main()
