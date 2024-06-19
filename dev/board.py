@@ -1,8 +1,7 @@
 from src.board import RealBoard, BoardDetection
-from src.game import Game
+from src.game import Game, ROBOT
 import chess
 import chess.pgn
-from copy import deepcopy
 import chess.engine
 from typing import Optional
 import logging
@@ -58,20 +57,26 @@ class EngineBoardDetection(BoardDetection):
 
         board = chess.Board(fen=self.game.chess_board().fen())
 
+        if self.game.player == ROBOT:
+            logging.info("Detecting current game board for robot to make a move")
+            return RealBoard(board=board, perspective=perspective)
+
         if self.prev_board and boards_are_equal(board, self.prev_board):
             move = self.prev_move
+            move_uci = move.uci() if move else None
+            logging.info(f"Detecting previously generated move {move_uci}")
         else:
             result = self.engine.play(board, chess.engine.Limit(depth=self.depth))
             move = result.move
+            move_uci = move.uci() if move else None
+
+            logging.info(f"Game board change, detecting newly generated move {move_uci}")
+
+        if not move or move not in board.legal_moves:
+            raise RuntimeError(f"Engine did not make a valid move ({move_uci}).")
 
         self.prev_board = chess.Board(fen=board.fen())
         self.prev_move = move
-
-        if not move or move not in board.legal_moves:
-            move_uci = move.uci() if move else None
-            raise RuntimeError(f"Engine did not make a valid move ({move_uci}).")
-
-        logging.info(f"EngineBoardDetection detected move {move.uci()}")
 
         board.push(move)
 
