@@ -20,13 +20,11 @@ OFF_BOARD_SQUARES = {
 }
 
 # Delay configuration
-DELAY_TIMEOUT_MIN_S = 0.1
-DELAY_TIMEOUT_MAX_S = 30
-DELAY_WAIT_S = 0.1
+DELAY_TIMEOUT = 5
 
 # Signal waiting return values
-RESPONSE_TIMEOUT = 0
-RESPONSE_SUCCESS = 1
+COMMAND_FAILURE = 0
+COMMAND_SUCCESS = 1
 
 ip_address = '192.168.1.6'
 port = 6001
@@ -37,7 +35,7 @@ def setup_communication(new_ip_address: str = '192.168.1.6', new_port: int = 600
     ip_address = new_ip_address
     port = new_port
 
-def reset_board():
+def reset_state():
     return issue_command("99 99 99 99")
 
 def off_board_square(piece_type: chess.PieceType, color: chess.Color) -> int:
@@ -48,30 +46,17 @@ def form_command(from_square: chess.Square, to_square: chess.Square, offset: Squ
     offset_x = int(max(min(offset.x * 100, 100), -100))
     offset_y = int(max(min(offset.y * 100, 100), -100))
 
-    # TODO: Test this part
     if perspective == chess.BLACK:
-        # Invert square coordinates
-        if 0 <= from_square <= 63:
-            from_square = 63 - from_square
+        # Flip off board squares
+        if -6 <= from_square < 0:
+            from_square -= 6
         else:
-            # Flip groups
-            if from_square >= -6:
-                from_square -= 6
-            else:
-                from_square += 6
+            from_square += 6
 
-        if 0 <= to_square <= 63:
-            to_square = 63 - to_square
+        if -6 <= to_square < 0:
+            to_square -= 6
         else:
-            # Flip groups
-            if to_square >= -6:
-                to_square -= 6
-            else:
-                to_square += 6
-
-        # Invert percentages to reflect direction of perspective
-        offset_x = -offset_x
-        offset_y = -offset_y
+            to_square += 6
 
     # Form the command parts as integers
     command_parts = [from_square, offset_x, offset_y, to_square]
@@ -81,10 +66,11 @@ def form_command(from_square: chess.Square, to_square: chess.Square, offset: Squ
     
     return command_string
 
-def issue_command(command, timeout_max=DELAY_TIMEOUT_MAX_S):
+def issue_command(command, timeout_max=DELAY_TIMEOUT):
+    robot_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    robot_socket.settimeout(timeout_max)
+
     try:
-        robot_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        robot_socket.settimeout(DELAY_TIMEOUT_MAX_S)
         robot_socket.connect((ip_address, port))
         logging.info(f"Connected to {ip_address}:{port}")
         
@@ -95,20 +81,16 @@ def issue_command(command, timeout_max=DELAY_TIMEOUT_MAX_S):
         robot_socket.sendall(message)
         
         # Wait for and receive a response from the robot server
-        start_time = time.time()
-        while (time.time() - start_time) < timeout_max:
-            try:
-                response = robot_socket.recv(1024)
-                if response:
-                    decoded_response = response.decode('utf-8').strip()
-                    if decoded_response == "success":
-                        return RESPONSE_SUCCESS
-                    else:
-                        return RESPONSE_TIMEOUT
-            except socket.timeout:
-                pass  # Continue waiting until timeout_max
+        response = robot_socket.recv(1024)
+        if response:
+            decoded_response = response.decode('utf-8').strip()
+            if decoded_response == "success":
+                return COMMAND_SUCCESS
 
-        print(f"Response too slow (>{timeout_max}s)!")
-        return RESPONSE_TIMEOUT
-    except Exception:
-        return RESPONSE_TIMEOUT
+        return COMMAND_FAILURE
+    except Exception as e:
+        logging.exception(e)
+        return COMMAND_FAILURE
+    finally:
+        robot_socket.close()
+

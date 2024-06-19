@@ -2,45 +2,49 @@ import chess
 import chess.engine
 from typing import Optional
 import time
-from .camera import CameraDetection
 from . import movement
-from . import communication
-from .board import BoardWithOffsets
+from . import robot 
+from .board import RealBoard, BoardDetection
+
+# TODO: Logging
 
 HUMAN = 0
 ROBOT = 1
 
 class Game:
     def __init__(self, 
-                 detection: CameraDetection,
+                 detection: BoardDetection,
                  engine: chess.engine.SimpleEngine,
                  perspective: chess.Color = chess.WHITE,
-                 depth: int = 4,
-                 move_pieces: bool = False) -> None:
+                 depth: int = 4) -> None:
         self.detection = detection
         self.depth = depth
         self.engine = engine
 
-        self.board = None
-        self.player = None
+        self.board = RealBoard(perspective=perspective)
+
+        if perspective == chess.WHITE:
+            self.player = HUMAN
+        else:
+            self.player = ROBOT
+
         self.resigned = False
-
-        self.reset_board(perspective, move_pieces=move_pieces)
-        self.set_depth(depth)
-
-    def set_depth(self, depth: int = 4):
-        self.depth = depth
-        self.engine.configure({"Skill Level": depth})
+        robot.reset_state()
 
     def reset_board(self, 
-                    perspective: chess.Color, 
+                    perspective: Optional[chess.Color] = None, 
                     move_pieces: bool = False):
+        if perspective is None:
+            perspective = self.board.perspective
+
+        expected_board = RealBoard(perspective=perspective)
+
         if move_pieces:
-            response = self._reshape_board(self.board.chess_board, self.board.perspective)
-            if response != communication.RESPONSE_SUCCESS:
+            response = self._reshape_board(expected_board)
+            if response != robot.COMMAND_SUCCESS:
                 raise RuntimeError("Robot hand timed out")
         else:
-            self.board = BoardWithOffsets(perspective=perspective)
+            self.board = expected_board
 
         if self.board.perspective == chess.WHITE:
             self.player = HUMAN
@@ -48,45 +52,44 @@ class Game:
             self.player = ROBOT
 
         self.resigned = False
-        communication.reset_board()
+        robot.reset_state()
+
+    def set_depth(self, depth: int = 4):
+        # FIXME: Does not work, rename method, fix logic
+        self.depth = depth
+        self.engine.configure({"Skill Level": depth})
 
     def robot_makes_move(self, move: Optional[chess.Move] = None) -> Optional[chess.Move]:
         new_board = self.detection.capture_board(perspective=self.board.perspective)
         self.board.offsets = new_board.offsets
 
         if not boards_are_equal(self.board.chess_board, new_board.chess_board):
-            print('Boards are not the same, waiting for the board to reposition to correct place')
+            print('Boards are not the same, waiting for the board to reposition to the correct place')
             return 
 
         if move is None:
             result = self.engine.play(self.board.chess_board, chess.engine.Limit(depth=self.depth))
             move = result.move
 
-        if not self.validate_move(move):
-            print(move.uci())
+        if not move or not self.validate_move(move):
+            print("Invalid robot move", move.uci() if move else '')
             return 
         
         response = movement.reflect_move(self.board, move)
-        if response != communication.RESPONSE_SUCCESS:
+        if response != robot.COMMAND_SUCCESS:
             return
-        
-        # TODO: Make a new image to ensure no one fucked up with the movement
         
         self.player = HUMAN
         self.board.push(move)
-        self._update_move()
         return move
     
-    def chess_board(self) -> chess.Board:
-        return self.board.chess_board
-    
     def player_made_move(self) -> Optional[chess.Move]:
-        move1, _ = self._player_made_move()
+        move1, _ = self._capture_valid_move()
         if move1 is None:
             return None
 
         time.sleep(0.3)
-        move2, board2 = self._player_made_move()
+        move2, board2 = self._capture_valid_move()
         if move2 is None:
             return None
 
@@ -95,50 +98,48 @@ class Game:
 
         self.player = ROBOT
         self.board.push(move1, to_offset=board2.offset(move1.to_square))
-        self._update_move()
-        return move1
-
-    def _player_made_move(self) -> Optional[chess.Move]:
-        prev_board = self.board
-        new_board = self.detection.capture_board(perspective=self.board.perspective)
-        move = movement.identify_move(prev_board.chess_board, new_board.chess_board)
-
-        if not self.validate_move(move):
-            return None, None
-
-        return move, new_board
+        return move2
 
     def validate_move(self, move: Optional[chess.Move]) -> bool:
-        return move in self.board.legal_moves()
+        # TODO: Check if resigned here?
+        return move in self.board.legal_moves
     
-    def check_game_over(self) -> str:
-        """Check if the game is over and return the result."""
+    def result(self) -> str:
+        # TODO: Win / lose not on white or black, but on human or robot
         if not self.resigned:
-            return self.board.chess_board.result()
+            return self.board.result()
         
         return "resigned"
     
     def resign_player(self):
         self.resigned = True
+
+    def chess_board(self) -> chess.Board:
+        return self.board.chess_board
+
+    def _capture_valid_move(self) -> tuple[Optional[chess.Move], RealBoard]:
+        prev_board = self.board
+        new_board = self.detection.capture_board(perspective=self.board.perspective)
+        move = movement.identify_move(prev_board.chess_board, new_board.chess_board)
+
+        if not move or not self.validate_move(move):
+            return None, new_board
+
+        return move, new_board
     
-    def _reshape_board(self, expected_board: chess.Board, perspective: chess.Color):
+    def _reshape_board(self, expected_board: RealBoard) -> int:
         done = False
-        current_board = self.detection.capture_board(perspective=perspective)
+        current_board = self.board
 
         while not done:
-            current_board = self.detection.capture_board(perspective=perspective)
-            response, done = movement.reset_board_v2(current_board, expected_board, perspective)
-            if response != communication.RESPONSE_SUCCESS:
+            current_board = self.detection.capture_board(perspective=expected_board.perspective)
+            response, done = movement.iter_reset_board(current_board, expected_board)
+            if response != robot.COMMAND_SUCCESS:
                 return response
 
         self.board.chess_board = current_board.chess_board
         self.board.offsets = current_board.offsets
-
-        return communication.RESPONSE_SUCCESS
-
-    def _update_move(self):
-        if self.board.chess_board.is_game_over():
-            communication.reset_board()
+        return robot.COMMAND_SUCCESS
     
 def boards_are_equal(board1: chess.Board, board2: chess.Board) -> bool:
     for square in chess.SQUARES:

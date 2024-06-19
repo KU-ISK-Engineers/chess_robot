@@ -203,7 +203,7 @@ def start_button():
 
 def chess_engine_thread():
     while True:
-        state = game.check_game_over()
+        state = game.result()
         root.after(0, update_turn)
 
         if state != "*" or state == "resigned":

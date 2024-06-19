@@ -93,7 +93,7 @@ def detect_aruco_area(image):
     aruco_params = cv2.aruco.DetectorParameters()
 
     # Detect markers in the image
-    corners, ids, rejected = cv2.aruco.detectMarkers(image, aruco_dict, parameters=aruco_params)
+    corners, ids, _ = cv2.aruco.detectMarkers(image, aruco_dict, parameters=aruco_params)
     
     if ids is not None and len(ids) == 4:
         # Collect all corner points
