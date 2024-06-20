@@ -318,7 +318,7 @@ def win_lose_msg():
 
     def display_win_lose_messages():
         image_path = None
-        state = game.check_game_over()
+        state = game.result()
 
         if state == "resigned":
             image_path = "images/you_lose.png"
