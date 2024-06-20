@@ -39,7 +39,7 @@ def main(delay: float, engine_path: Optional[str]):
 
         detection.attach_game(game)
 
-        gui_main(game)
+        gui_main(game, splash=False)
 
     except Exception as e:
         logging.exception(e)

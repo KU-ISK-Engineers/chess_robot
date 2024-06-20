@@ -450,7 +450,7 @@ def game_screen(root):
     game_thread.start()
 
 
-def gui_main(game_obj):
+def gui_main(game_obj, fullscreen = True, splash = False):
     global root, game
     game=game_obj
 
@@ -459,8 +459,9 @@ def gui_main(game_obj):
     root = tk.Tk()
     root.configure(bg="#FFFFFF")
 
-    root.attributes('-fullscreen', True)
-    root.attributes('-type', 'splash')
+    root.attributes('-fullscreen', fullscreen)
+    if splash:
+        root.attributes('-type', 'splash')
 
     background()
     level_screen()
