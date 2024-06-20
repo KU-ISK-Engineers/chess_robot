@@ -46,8 +46,19 @@ def check_msg():
     label11.image = image11
     label11.place(x=screen_width/2-image11.width()/2, y=screen_height/2-image11.height()/2)
     label11.after(3000, label11.destroy)
-    
+#wrong move message, perhaps needs to be modified to be visible until a legal move is made (now it appears for 3s)
+def wrong_move_msg():
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
 
+    image11 = Image.open("images/wrong_move.png")
+    image11 = ImageTk.PhotoImage(image11)
+
+    label11 = tk.Label(root, image=image11, borderwidth=0, bg="#FFFFFF")
+    label11.image = image11
+    label11.place(x=screen_width/2-image11.width()/2, y=screen_height/2-image11.height()/2)
+    label11.after(3000, label11.destroy)  
+'''
 def help_screen():
     global main_frame, left_frame
     clear_screen()
@@ -99,15 +110,19 @@ def show_video(video_path):
     back_button.image = back_button_image
     back_button.place(relx=0.9, rely=0.9, anchor='center')
 
+
 def help_button():
     help_button_image = Image.open("images/help.png")
     help_button_image = help_button_image.resize((100, 75), Image.Resampling.LANCZOS)
     help_button_image = ImageTk.PhotoImage(help_button_image)
 
     help_button = tk.Button(root, image=help_button_image, command=help_screen, borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
+    
     help_button.image = help_button_image
     
     return help_button
+
+'''
 
 def clear_screen():
     for widget in root.winfo_children():
@@ -174,11 +189,11 @@ def background():
     count_label.place(x=x4 + killcount.width() // 2 - 20, y=230)
     logo_widgets.append(count_label)
 
-    help=help_button()
-    help.place(relx=0.1, rely=0.45, anchor='center')
-    logo_widgets.append(help)
-
-#start_game: game_screen and a thread for game
+    #help=help_button()
+    #help.place(relx=0.1, rely=0.45, anchor='center')
+    #logo_widgets.append(help)
+'''
+#start_game: game_screen
 def start_button():
     global button
 
@@ -200,7 +215,7 @@ def start_button():
     y = (screen_height - image.height()) // 2
 
     button.place(x=x, y=y)
-
+'''
 def chess_engine_thread():
     while True:
         state = game.result()
@@ -298,12 +313,11 @@ def assign_color(selected_color):
         game.reset_board(perspective=chess.WHITE)
     elif selected_color=='black':
         game.reset_board(perspective=chess.BLACK)
-    def start_game():                          #game starts after color selection
+    def start_game():                     
         game_screen(root)
     start_game()
 
 
-#win lose msg: determined from both game.board.perspective and game.check_game_over()
 def win_lose_msg():
     clear_screen()
 
@@ -384,7 +398,7 @@ def finished_functions():
     update_turn()
     #finished_button.destroy()
 
-#resign/ finished buttons
+
 def game_screen(root):
     clear_screen()
     #screen setup
@@ -434,7 +448,6 @@ def game_screen(root):
     global game_thread
     game_thread = threading.Thread(target=chess_engine_thread)
     game_thread.start()
-
 
 
 def gui_main(game_obj):
