@@ -4,6 +4,7 @@ from src.gui import gui_main
 from src.game import Game
 
 from dev.board import EngineBoardDetection
+from dev.robot import patch_communication
 
 import chess.engine
 import logging
@@ -13,7 +14,7 @@ def main():
         # TODO: Better logging
         logging.basicConfig(format='%(asctime)s %(levelname)s:%(name)s:%(message)s', datefmt='%x %X', level=logging.INFO)
         
-        setup_communication()
+        patch_communication(new_delay = 10)
 
         engine = chess.engine.SimpleEngine.popen_uci("stockfish")
 

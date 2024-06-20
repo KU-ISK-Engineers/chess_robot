@@ -66,7 +66,7 @@ def form_command(from_square: chess.Square, to_square: chess.Square, offset: Squ
     
     return command_string
 
-def issue_command(command, timeout_max=DELAY_TIMEOUT):
+def issue_command(command: str, timeout_max=DELAY_TIMEOUT) -> int:
     robot_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     robot_socket.settimeout(timeout_max)
 
