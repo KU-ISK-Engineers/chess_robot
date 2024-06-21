@@ -10,6 +10,8 @@ from .board import RealBoard, BoardDetection
 
 HUMAN = 0
 ROBOT = 1
+global wrong_player_move
+wrong_player_move=False
 
 class Game:
     def __init__(self, 
@@ -81,7 +83,10 @@ class Game:
         
         self.player = HUMAN
         self.board.push(move)
+        print(move)
         return move
+    
+
     
     def player_made_move(self) -> Optional[chess.Move]:
         move1, _ = self._capture_valid_move()
@@ -98,6 +103,8 @@ class Game:
 
         self.player = ROBOT
         self.board.push(move1, to_offset=board2.offset(move1.to_square))
+        #wrong_player_move=False
+        print(move2)
         return move2
 
     def validate_move(self, move: Optional[chess.Move]) -> bool:
@@ -122,7 +129,11 @@ class Game:
         new_board = self.detection.capture_board(perspective=self.board.perspective)
         move = movement.identify_move(prev_board.chess_board, new_board.chess_board)
 
-        if not move or not self.validate_move(move):
+        if not move:
+            return None, new_board
+        
+        elif not self.validate_move(move):
+            #wrong_player_move=True
             return None, new_board
 
         return move, new_board
@@ -146,3 +157,4 @@ def boards_are_equal(board1: chess.Board, board2: chess.Board) -> bool:
         if board1.piece_at(square) != board2.piece_at(square):
             return False
     return True
+
