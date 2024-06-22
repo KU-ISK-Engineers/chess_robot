@@ -3,11 +3,64 @@ from PIL import Image, ImageTk
 from .game import HUMAN, ROBOT
 import threading
 import chess
-from tkvideo import tkvideo
 
 robot_count = 0
 game_thread = None
 
+class ChessGUI:
+    def __init__(self):
+        self.root = root
+        self.board = chess.Board()
+        self.create_widgets()
+        self.piece_map = {
+            "r": "♜", "n": "♞", "b": "♝", "q": "♛", "k": "♚", "p": "♟",
+            "R": "♖", "N": "♘", "B": "♗", "Q": "♕", "K": "♔", "P": "♙"
+        }
+        self.draw_board()
+
+    def create_widgets(self):
+        self.frame = tk.Frame(self.root, bd=5, relief=tk.SUNKEN)
+        self.frame.place(x=550, y=200, width=640, height=640)
+        self.canvas = tk.Canvas(self.frame)
+        self.canvas.pack(fill=tk.BOTH, expand=True)
+        for row in range(8):
+            for col in range(8):
+                color = "white" if (row + col) % 2 == 0 else "gray"
+                x1 = col * 80
+                y1 = row * 80
+                x2 = x1 + 80
+                y2 = y1 + 80
+                self.canvas.create_rectangle(x1, y1, x2, y2, fill=color)
+
+    def draw_board(self):
+        self.canvas.delete("pieces")  
+
+        for i, square in enumerate(chess.SQUARES):
+            piece = self.board.piece_at(square)
+            if piece is not None:
+                row = chess.square_rank(square)
+                col = chess.square_file(square)
+                x = col * 80 + 40  # Centering the text within the square
+                y = (7 - row) * 80 + 40  # Centering the text within the square
+                self.canvas.create_text(x, y, text=self.piece_map[piece.symbol()], font=("Arial", 32), tags="pieces")
+
+    def move(self, coord):
+        move_str = coord
+        chess_move = self.parse_move(move_str)
+        if chess_move is not None:
+            self.make_move(chess_move)
+
+    def parse_move(self, move_str):
+        try:
+            from_square = chess.parse_square(move_str[:2])
+            to_square = chess.parse_square(move_str[2:])
+            return chess.Move(from_square, to_square)
+        except ValueError:
+            return None
+
+    def make_move(self, chess_move):
+        self.board.push(chess_move)
+        self.draw_board()
 def update_robot_win_count():
     global robot_count
     read_robot_count_from_file()
@@ -46,7 +99,7 @@ def check_msg():
     label11.image = image11
     label11.place(x=screen_width/2-image11.width()/2, y=screen_height/2-image11.height()/2)
     label11.after(3000, label11.destroy)
-#wrong move message, perhaps needs to be modified to be visible until a legal move is made (now it appears for 3s)
+
 def wrong_move_msg():
     screen_width = root.winfo_screenwidth()
     screen_height = root.winfo_screenheight()
@@ -57,7 +110,8 @@ def wrong_move_msg():
     label11 = tk.Label(root, image=image11, borderwidth=0, bg="#FFFFFF")
     label11.image = image11
     label11.place(x=screen_width/2-image11.width()/2, y=screen_height/2-image11.height()/2)
-    label11.after(3000, label11.destroy)  
+    label11.after(2000, label11.destroy)  
+    
 '''
 def help_screen():
     global main_frame, left_frame
@@ -217,6 +271,7 @@ def start_button():
     button.place(x=x, y=y)
 '''
 def chess_engine_thread():
+    chess_gui = ChessGUI()
     while True:
         state = game.result()
         root.after(0, update_turn)
@@ -224,14 +279,23 @@ def chess_engine_thread():
         if state != "*" or state == "resigned":
             print('Stopping game')
             return win_lose_msg()
-    
+        
+        #not sure this works
+        #if game.player_made_move() is None and wrong_player_move:
+        #    wrong_move_msg()
+
         valid_move = None
 
         if game.player == ROBOT:
             valid_move = game.robot_makes_move()
+            if valid_move is not None:
+                chess_gui.move(valid_move.uci())
         elif game.player == HUMAN:
             valid_move = game.player_made_move()
+            if valid_move is not None:
+                chess_gui.move(valid_move.uci())
 
+        
 #in level screen: game.depth=level
 def level_screen():
     clear_screen()
@@ -420,8 +484,8 @@ def game_screen(root):
 
     turns_label = tk.Label(root, image=turns, borderwidth=0, bg="#FFFFFF")
     turns_label.image = turns
-    x_turns = (screen_width - turns.width()) // 2
-    y_turns = (screen_height) // 4
+    x_turns = 20
+    y_turns = (screen_height) // 3
     turns_label.place(x=x_turns, y=y_turns)
 
     robot_label = tk.Label(root, image=robot_turn_inactive, borderwidth=0, bg="#FFFFFF")
@@ -437,7 +501,7 @@ def game_screen(root):
     resign = ImageTk.PhotoImage(resign)
     resign_button = tk.Button(root, image=resign, command=lambda: resign_button_commands(), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
     resign_button.image = resign
-    resign_button.place(x=screen_width - resign.width() - 50, y=screen_height - resign.height() - 50)
+    resign_button.place(x=20, y=screen_height - resign.height() - 50)
 
     # finished_move = Image.open("images/move_finished.png")
     # finished_move = finished_move.resize((300, 150), Image.Resampling.LANCZOS)

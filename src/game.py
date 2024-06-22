@@ -81,23 +81,28 @@ class Game:
         
         self.player = HUMAN
         self.board.push(move)
+        print(move)
         return move
     
-    def player_made_move(self) -> Optional[chess.Move]:
-        move1, _ = self._capture_valid_move()
+    def player_made_move(self) -> tuple[Optional[chess.Move], bool]:
+        move1, _ = self._capture_move()
         if move1 is None:
-            return None
+            return None, False
 
         time.sleep(0.3)
-        move2, board2 = self._capture_valid_move()
+        move2, board2 = self._capture_move()
         if move2 is None:
-            return None
+            return None, False
 
         if move1 != move2:
-            return None
+            return None, False
+
+        if not self.validate_move(move2):
+            return None, True
 
         self.player = ROBOT
         self.board.push(move1, to_offset=board2.offset(move1.to_square))
+        print(move2)
         return move2
 
     def validate_move(self, move: Optional[chess.Move]) -> bool:
@@ -117,14 +122,10 @@ class Game:
     def chess_board(self) -> chess.Board:
         return self.board.chess_board
 
-    def _capture_valid_move(self) -> tuple[Optional[chess.Move], RealBoard]:
+    def _capture_move(self) -> tuple[Optional[chess.Move], RealBoard]:
         prev_board = self.board
         new_board = self.detection.capture_board(perspective=self.board.perspective)
         move = movement.identify_move(prev_board.chess_board, new_board.chess_board)
-
-        if not move or not self.validate_move(move):
-            return None, new_board
-
         return move, new_board
     
     def _reshape_board(self, expected_board: RealBoard) -> int:
@@ -146,3 +147,4 @@ def boards_are_equal(board1: chess.Board, board2: chess.Board) -> bool:
         if board1.piece_at(square) != board2.piece_at(square):
             return False
     return True
+
