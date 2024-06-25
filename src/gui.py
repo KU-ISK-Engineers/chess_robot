@@ -401,7 +401,7 @@ def game_screen():
     game_thread.start()
 
 
-def gui_main(game_obj, fullscreen = True, splash = False):
+def gui_main(game_obj, fullscreen = True, splash = True):
     global root, game
     game=game_obj
 
