@@ -5,8 +5,7 @@ import time
 from . import movement
 from . import robot 
 from .board import RealBoard, BoardDetection
-
-# TODO: Logging
+import logging
 
 HUMAN = 0
 ROBOT = 1
@@ -64,7 +63,7 @@ class Game:
         self.board.offsets = new_board.offsets
 
         if not boards_are_equal(self.board.chess_board, new_board.chess_board):
-            print('Boards are not the same, waiting for the board to reposition to the correct place')
+            logging.info('Detected board does not match previous legal board for robot to move, waiting to reposition')
             return 
 
         if move is None:
@@ -72,7 +71,7 @@ class Game:
             move = result.move
 
         if not move or not self.validate_move(move):
-            print("Invalid robot move", move.uci() if move else '')
+            logging.warning("Invalid robot move", move.uci() if move else '')
             return 
         
         response = movement.reflect_move(self.board, move)
@@ -81,7 +80,7 @@ class Game:
         
         self.player = HUMAN
         self.board.push(move)
-        print(move)
+        logging.info(f"Robot made move {move.uci()}")
         return move
     
     def player_made_move(self) -> tuple[Optional[chess.Move], bool]:
@@ -102,6 +101,7 @@ class Game:
 
         self.player = ROBOT
         self.board.push(move1, to_offset=board2.offset(move1.to_square))
+        logging.info(f"Player made move {move2.uci}")
         return move2, True
 
     def validate_move(self, move: Optional[chess.Move]) -> bool:
