@@ -20,7 +20,7 @@ OFF_BOARD_SQUARES = {
 }
 
 # Delay configuration
-DELAY_TIMEOUT = 5
+DELAY_TIMEOUT = 30
 
 # Signal waiting return values
 COMMAND_FAILURE = 0
