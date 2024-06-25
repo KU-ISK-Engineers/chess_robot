@@ -102,8 +102,7 @@ class Game:
 
         self.player = ROBOT
         self.board.push(move1, to_offset=board2.offset(move1.to_square))
-        print(move2)
-        return move2
+        return move2, True
 
     def validate_move(self, move: Optional[chess.Move]) -> bool:
         # TODO: Check if resigned here?
