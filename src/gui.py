@@ -195,7 +195,7 @@ def chess_engine_thread():
             if valid_move is not None:
                 chess_gui.move(valid_move.uci())
         elif game.player == HUMAN:
-            valid_move = game.player_made_move()
+            valid_move, detected_move = game.player_made_move()
             if valid_move is not None:
                 chess_gui.move(valid_move.uci())
 
