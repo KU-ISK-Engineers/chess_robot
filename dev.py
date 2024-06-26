@@ -27,7 +27,10 @@ def load_engine(engine_path: Optional[str] = None):
 def main(delay: float, engine_path: Optional[str]):
     try:
         # TODO: Better logging
-        logging.basicConfig(format='%(asctime)s %(levelname)s:%(name)s:%(message)s', datefmt='%x %X', level=logging.INFO)
+        logging.basicConfig(format='%(asctime)s %(levelname)s:%(name)s:%(message)s', datefmt='%x %X', level=logging.INFO, handlers=[
+            logging.StreamHandler(),
+            logging.FileHandler("log.txt")
+        ])
         
         patch_communication(new_delay = delay)
 

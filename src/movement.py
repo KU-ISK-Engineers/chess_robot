@@ -56,27 +56,26 @@ def reflect_move(board: RealBoard, move: chess.Move) -> int:
 def move_piece(board: RealBoard, from_square: chess.Square, to_square: chess.Square, prev_response=robot.COMMAND_SUCCESS) -> int:
     """Assume move is valid, call before pushing move in memory!"""
     if prev_response == robot.COMMAND_SUCCESS:
-        from_str = chess.square_name(from_square)
-        to_str = chess.square_name(to_square)
-        move_str = f"{from_str} -> {to_str}"
-        logging.info(f"Making move: {move_str}")
-
         offset = board.offset(from_square)
 
         command = robot.form_command(from_square, to_square, offset, perspective=board.perspective)
         response = robot.issue_command(command)
 
-        if response == robot.COMMAND_SUCCESS:
-            logging.info(f"Move {move_str} success")
+        from_str = chess.square_name(from_square) if 0 <= from_square <= 63 else from_square
+        to_str = chess.square_name(to_square) if 0 <= to_square <= 63 else to_square
+        move_str = f"{from_str} -> {to_str}"
 
+        if response == robot.COMMAND_SUCCESS:
             # Update board offsets
-            if 0 >= from_square <= 63:
+            if 0 <= from_square <= 63:
                 board.set_offset(from_square, SQUARE_CENTER)
 
-            if 0 >= to_square <= 63:
+            if 0 <= to_square <= 63:
                 board.set_offset(to_square, SQUARE_CENTER)
+
+            logging.info(f"Moved piece {move_str} success")
         else:
-            logging.warning(f"Move {move_str} failed!")
+            logging.warning(f"Moved piece {move_str} failed!")
 
         return response
     else:
