@@ -4,7 +4,6 @@ import chess
 import chess.pgn
 import chess.engine
 from typing import Optional
-import logging
 
 class PGNBoardDetection(BoardDetection):
     def __init__(self, pgn_file: str):
@@ -45,43 +44,26 @@ class EngineBoardDetection(BoardDetection):
         self.engine = engine
         self.game = game
         self.depth = depth
-        self.prev_board = None
-        self.prev_move = None
 
     def attach_game(self, game: Game):
         self.game = game
 
-    def capture_board(self, perspective: chess.Color = chess.WHITE) -> RealBoard:
+    def capture_board(self, perspective: chess.Color = chess.WHITE) -> Optional[RealBoard]:
         if not self.game:
             raise ValueError("Cannot capture board without attaching a game.")
 
         board = chess.Board(fen=self.game.chess_board().fen())
 
         if self.game.player == ROBOT:
-            logging.info("Detecting current game board for robot to make a move")
             return RealBoard(board=board, perspective=perspective)
 
-        if self.prev_board and boards_are_equal(board, self.prev_board):
-            move = self.prev_move
-            move_uci = move.uci() if move else None
-            logging.info(f"Detecting previously generated move {move_uci}")
-        else:
-            result = self.engine.play(board, chess.engine.Limit(depth=self.depth))
-            move = result.move
-            move_uci = move.uci() if move else None
-
-            logging.info(f"Game board change, detecting newly generated move {move_uci}")
+        result = self.engine.play(board, chess.engine.Limit(depth=self.depth))
+        move = result.move
 
         if not move or move not in board.legal_moves:
+            move_uci = move.uci() if move else ''
             raise RuntimeError(f"Engine did not make a valid move ({move_uci}).")
 
-        self.prev_board = chess.Board(fen=board.fen())
-        self.prev_move = move
-
         board.push(move)
-
         return RealBoard(board=board, perspective=perspective)
-
-def boards_are_equal(board1: chess.Board, board2: chess.Board) -> bool:
-    return board1.fen() == board2.fen()
 

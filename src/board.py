@@ -51,6 +51,12 @@ class RealBoard:
 
 class BoardDetection(ABC):
     @abstractmethod
-    def capture_board(self, perspective: chess.Color = chess.WHITE) -> RealBoard:
+    def capture_board(self, perspective: chess.Color = chess.WHITE) -> Optional[RealBoard]:
         pass
+
+def boards_are_equal(board1: chess.Board, board2: chess.Board) -> bool:
+    for square in chess.SQUARES:
+        if board1.piece_at(square) != board2.piece_at(square):
+            return False
+    return True
 

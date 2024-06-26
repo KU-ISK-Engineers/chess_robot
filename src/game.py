@@ -1,10 +1,9 @@
 import chess
 import chess.engine
 from typing import Optional
-import time
+from .board import RealBoard, BoardDetection, boards_are_equal
+from . import robot
 from . import movement
-from . import robot 
-from .board import RealBoard, BoardDetection
 import logging
 
 HUMAN = 0
@@ -60,7 +59,8 @@ class Game:
 
     def robot_makes_move(self, move: Optional[chess.Move] = None) -> Optional[chess.Move]:
         new_board = self.detection.capture_board(perspective=self.board.perspective)
-        self.board.offsets = new_board.offsets
+        if not new_board:
+            return
 
         if not boards_are_equal(self.board.chess_board, new_board.chess_board):
             logging.info('Detected board does not match previous legal board for robot to move, waiting to reposition')
@@ -73,7 +73,8 @@ class Game:
         if not move or not self.validate_move(move):
             logging.warning("Invalid robot move", move.uci() if move else '')
             return 
-        
+
+        self.board.offsets = new_board.offsets
         response = movement.reflect_move(self.board, move)
         if response != robot.COMMAND_SUCCESS:
             return
@@ -84,25 +85,21 @@ class Game:
         return move
     
     def player_made_move(self) -> tuple[Optional[chess.Move], bool]:
-        move1, _ = self._capture_move()
-        if move1 is None:
+        new_board = self.detection.capture_board(perspective=self.board.perspective)
+        if not new_board:
             return None, False
 
-        time.sleep(0.3)
-        move2, board2 = self._capture_move()
-        if move2 is None:
+        move = movement.identify_move(self.board.chess_board, new_board.chess_board)
+        if not move:
             return None, False
 
-        if move1 != move2:
-            return None, False
-
-        if not self.validate_move(move2):
+        if not self.validate_move(move):
             return None, True
 
         self.player = ROBOT
-        self.board.push(move1, to_offset=board2.offset(move1.to_square))
-        logging.info(f"Player made move {move2.uci()}")
-        return move2, True
+        self.board.push(move, to_offset=new_board.offset(move.to_square))
+        logging.info(f"Player made move {move.uci()}")
+        return move, True
 
     def validate_move(self, move: Optional[chess.Move]) -> bool:
         # TODO: Check if resigned here?
@@ -121,18 +118,15 @@ class Game:
     def chess_board(self) -> chess.Board:
         return self.board.chess_board
 
-    def _capture_move(self) -> tuple[Optional[chess.Move], RealBoard]:
-        prev_board = self.board
-        new_board = self.detection.capture_board(perspective=self.board.perspective)
-        move = movement.identify_move(prev_board.chess_board, new_board.chess_board)
-        return move, new_board
-    
     def _reshape_board(self, expected_board: RealBoard) -> int:
         done = False
         current_board = self.board
 
         while not done:
             current_board = self.detection.capture_board(perspective=expected_board.perspective)
+            if not current_board:
+                continue
+
             response, done = movement.iter_reset_board(current_board, expected_board)
             if response != robot.COMMAND_SUCCESS:
                 return response
@@ -141,9 +135,3 @@ class Game:
         self.board.offsets = current_board.offsets
         return robot.COMMAND_SUCCESS
     
-def boards_are_equal(board1: chess.Board, board2: chess.Board) -> bool:
-    for square in chess.SQUARES:
-        if board1.piece_at(square) != board2.piece_at(square):
-            return False
-    return True
-

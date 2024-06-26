@@ -6,7 +6,7 @@ from ultralytics import YOLO
 import numpy as np
 import time
 from .aruco import detect_aruco_area
-from .board import RealBoard, BoardDetection
+from .board import RealBoard, BoardDetection, boards_are_equal
 from .image import crop_image_by_area, greyscale_to_board
 
 def default_camera_setup():
@@ -55,11 +55,17 @@ class CameraBoardDetection(BoardDetection):
 
         return cropped_image
 
-    def capture_board(self, perspective: chess.Color = chess.WHITE) -> RealBoard:
-        image = self.capture_image()
-        board = greyscale_to_board(image, self.model, flip=perspective == chess.WHITE)
-        board.perspective = perspective
-        return board
+    def capture_board(self, perspective: chess.Color = chess.WHITE) -> Optional[RealBoard]:
+        image1 = self.capture_image()
+        time.sleep(0.3)
+        image2 = self.capture_image()
+
+        board1 = greyscale_to_board(image1, self.model, flip=perspective == chess.WHITE)
+        board2 = greyscale_to_board(image2, self.model, flip=perspective == chess.WHITE)
+
+        if boards_are_equal(board1.chess_board, board2.chess_board):
+            board2.perspective = perspective
+            return board2
 
     def _preprocess_image(self, image: np.ndarray) -> np.ndarray:
         image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
