@@ -5,6 +5,8 @@ import threading
 import chess
 import logging
 
+logger = logging.getLogger(__name__)
+
 win_count = 0
 game_thread = None
 
@@ -79,7 +81,7 @@ def read_robot_count_from_file():
             content = file.read()
             if content:
                 win_count = int(content)
-                logging.info(f"Robot wins: {win_count}")
+                logger.info(f"Robot wins: {win_count}")
     except FileNotFoundError:
         win_count = 0
 

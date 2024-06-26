@@ -4,6 +4,8 @@ import chess
 import logging
 from .board import SquareOffset, SQUARE_CENTER
 
+logger = logging.getLogger(__name__)
+
 OFF_BOARD_SQUARES = {
     (chess.ROOK, chess.WHITE): -1,
     (chess.BISHOP, chess.WHITE): -2,
@@ -72,7 +74,7 @@ def issue_command(command: str, timeout_max=DELAY_TIMEOUT) -> int:
 
     try:
         robot_socket.connect((ip_address, port))
-        logging.info(f"Connected to {ip_address}:{port}")
+        logger.info(f"Connected to {ip_address}:{port}")
         
         # Convert command to a space-separated string and encode to bytes
         message = command.encode('utf-8')

@@ -4,6 +4,8 @@ import chess
 from . import robot
 from .board import RealBoard, SQUARE_CENTER
 
+logger = logging.getLogger(__name__)
+
 def reflect_move(board: RealBoard, move: chess.Move) -> int:
     """
     Makes move physically, does not save the move in board
@@ -73,9 +75,9 @@ def move_piece(board: RealBoard, from_square: chess.Square, to_square: chess.Squ
             if 0 <= to_square <= 63:
                 board.set_offset(to_square, SQUARE_CENTER)
 
-            logging.info(f"Moved piece {move_str} success")
+            logger.info(f"Moved piece {move_str} success")
         else:
-            logging.warning(f"Moved piece {move_str} failed!")
+            logger.warning(f"Moved piece {move_str} failed!")
 
         return response
     else:

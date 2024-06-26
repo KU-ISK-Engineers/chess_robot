@@ -8,6 +8,9 @@ import time
 from .aruco import detect_aruco_area
 from .board import RealBoard, BoardDetection, boards_are_equal
 from .image import crop_image_by_area, greyscale_to_board
+import logging
+
+logger = logging.getLogger(__name__)
 
 def default_camera_setup():
     camera = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateFirstDevice())
@@ -34,31 +37,38 @@ class CameraBoardDetection(BoardDetection):
         self.area = None
         self.board = None
 
-    def capture_image(self) -> np.ndarray:
+    def capture_image(self) -> Optional[np.ndarray]:
         if not self.camera.IsGrabbing():
-            raise RuntimeError("Camera is not grabbing images.")
+            logger.warning("Camera is not grabbing images")
+            return 
         
         cropped_image = None
         
         while cropped_image is None:
-            grab_result = self.camera.RetrieveResult(self.timeout, pylon.TimeoutHandling_ThrowException)
+            grab_result = self.camera.RetrieveResult(self.timeout, pylon.TimeoutHandling_Return)
             if not grab_result.GrabSucceeded():
-                raise RuntimeError("Failed to grab image from camera.")
+                logger.warning("Failed to grab image from camera.")
+                continue
 
             image = grab_result.Array
             image = self._preprocess_image(image)
             cropped_image = self._crop_image(image)
 
             if cropped_image is None:
-                print('Waiting for image to be cropped')
+                logger.info('Waiting for image to be cropped')
                 time.sleep(1)
 
         return cropped_image
 
     def capture_board(self, perspective: chess.Color = chess.WHITE) -> Optional[RealBoard]:
         image1 = self.capture_image()
+        if not image1:
+            return
+
         time.sleep(0.3)
         image2 = self.capture_image()
+        if not image2:
+            return
 
         board1 = greyscale_to_board(image1, self.model, flip=perspective == chess.WHITE)
         board2 = greyscale_to_board(image2, self.model, flip=perspective == chess.WHITE)
