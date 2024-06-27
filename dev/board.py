@@ -3,41 +3,41 @@ from src.game import Game, ROBOT
 import chess
 import chess.pgn
 import chess.engine
-from typing import Optional
+from typing import Optional, TextIO
 
 class PGNBoardDetection(BoardDetection):
-    def __init__(self, pgn_file: str):
-        moves = read_pgn_moves(pgn_file)
-        if not moves:
-            raise ValueError(f"No moves found in file {pgn_file}")
+    def __init__(self, pgn: TextIO):
+        pgn_game = chess.pgn.read_game(pgn)
+        if not pgn_game:
+            raise ValueError('Invalid pgn')
 
-        self.moves = moves
-        self.board_shown = 0
-        self.current_move = 0
-        self.board = chess.Board()
+        self.board = pgn_game.board()
+        self.moves = pgn_game.mainline_moves()
+        self.move = iter(self.moves)
+        self.game = None
 
-    def capture_board(self, perspective: chess.Color = chess.WHITE) -> RealBoard:
-        self.board_shown += 1
-        if self.board_shown >= 10:
-            self.board_shown = 0
-            self.current_move += 1
+    def attach_game(self, game: Game):
+        self.game = game
 
-            if self.current_move >= len(self.moves):
-                self.current_move = 0
-                self.board = RealBoard()
-            else:
-                self.board.push(self.moves[self.current_move])
+    def capture_board(self, perspective: chess.Color = chess.WHITE) -> Optional[RealBoard]:
+        if not self.game:
+            raise ValueError("Cannot capture board without attaching a game.")
+
+        game_board = self.game.chess_board()
+
+        if self.board.fen() != game_board.fen():
+            raise RuntimeError("Game board does not match pgn board")
+
+        move = self.next_move()
+        if not move:
+            raise RuntimeError("No more moves remaining")
 
         return RealBoard(board=chess.Board(fen=self.board.fen()), perspective=perspective)
 
-def read_pgn_moves(pgn_file: str) -> list[chess.Move]:
-    with open(pgn_file) as pgn:
-        game = chess.pgn.read_game(pgn)
-
-    if game is None:
-        return []
-    
-    return list(game.mainline_moves())
+    def next_move(self) -> chess.Move:
+        move = next(self.move)
+        self.board.push(move)
+        return move
 
 class EngineBoardDetection(BoardDetection):
     def __init__(self, engine: chess.engine.SimpleEngine, game: Optional[Game] = None, depth: int = 4):
