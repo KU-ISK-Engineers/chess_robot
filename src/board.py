@@ -8,6 +8,7 @@ class SquareOffset(NamedTuple):
 
 SQUARE_CENTER = SquareOffset(0, 0)
 
+# TODO: When perspective changes, offsets flip
 class RealBoard:
     def __init__(self, board: Optional[chess.Board] = None, offsets: Optional[list[SquareOffset]] = None, perspective: chess.Color = chess.WHITE):
         if board is None:
