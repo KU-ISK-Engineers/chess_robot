@@ -91,17 +91,13 @@ class Game:
         if not new_board:
             return None, False
 
-        move = movement.identify_move(self.board.chess_board, new_board.chess_board)
-        if not move:
-            return None, False
+        move, legal = movement.identify_move(self.board.chess_board, new_board.chess_board)
+        if move and legal:
+            self.player = ROBOT
+            self.board.push(move, to_offset=new_board.offset(move.to_square))
+            logger.info(f"Player made move {move.uci()}")
 
-        if not self.validate_move(move):
-            return None, True
-
-        self.player = ROBOT
-        self.board.push(move, to_offset=new_board.offset(move.to_square))
-        logger.info(f"Player made move {move.uci()}")
-        return move, True
+        return move, legal
 
     def validate_move(self, move: Optional[chess.Move]) -> bool:
         # TODO: Check if resigned here?

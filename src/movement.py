@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 import chess
 from . import robot
 from .board import RealBoard, SQUARE_CENTER
@@ -15,7 +15,7 @@ def reflect_move(board: RealBoard, move: chess.Move) -> int:
     from_square, to_square = (move.from_square, move.to_square)
 
     if board.chess_board.is_castling(move):
-        rook_move = castle_rook_move(board.chess_board, move)
+        rook_move = castle_rook_move(move)
         if not rook_move:
             return robot.COMMAND_FAILURE
 
@@ -83,115 +83,109 @@ def move_piece(board: RealBoard, from_square: chess.Square, to_square: chess.Squ
     else:
         return prev_response
 
-def identify_move(prev_board: chess.Board, current_board: chess.Board) -> Optional[chess.Move]:
+def identify_move(previous_board: chess.Board, current_board: chess.Board) -> tuple[Optional[chess.Move], bool]:
     """
     Don't forget to validate move afterwards before using it
     """
 
     # Find piece differences
-    dissapeared: List[chess.Square] = []
-    appeared: List[chess.Square] = []
+    dissapeared: list[tuple[chess.Square, chess.Piece]] = []
+    appeared: list[tuple[chess.Square, chess.Piece]] = []
 
     for square in chess.SQUARES:
-        prev_piece = prev_board.piece_at(square)
-        curr_piece = current_board.piece_at(square)
+        previous_piece = previous_board.piece_at(square)
+        current_piece = current_board.piece_at(square)
 
-        if prev_piece != curr_piece:
-            if prev_piece is not None and curr_piece is None:
-                dissapeared.append(square)
-            else: # New piece or captured
-                appeared.append(square)
+        if previous_piece != current_piece:
+            if previous_piece and not current_piece:
+                dissapeared.append((square, previous_piece))
+            elif current_piece: # New piece or captured
+                appeared.append((square, current_piece))
+
+    # Identify move
+    move = None
 
     # Validate normal and promotion moves
     if len(dissapeared) == 1 and len(appeared) == 1:
-        move = chess.Move(dissapeared[0], appeared[0])
+        previous_square, previous_piece = dissapeared[0]
+        current_square, current_piece = appeared[0]
+
+        move = chess.Move(previous_square, current_square)
 
         # En passant exception
-        if is_en_passant(prev_board, move):
-            return None
+        if is_en_passant(previous_board, move):
+            return move, False
             
         # Castling exception
-        if prev_board.is_castling(move):
-            return None
+        if previous_board.is_castling(move):
+            return move, False
         
-        # Check for promotion
-        if prev_board.piece_at(move.from_square).piece_type == chess.PAWN and chess.square_rank(move.to_square) in (0,7):
-            promotion_piece = current_board.piece_at(move.to_square)
-
-            # Validate promotion piece
-            if not promotion_piece or prev_board.piece_at(move.from_square).color != promotion_piece.color:
-                return None
-
-            move.promotion = promotion_piece.piece_type
-
-        return move
+        # Promotion exception
+        if previous_piece.piece_type == chess.PAWN and chess.square_rank(move.to_square) in (0,7):
+            move.promotion = current_piece.piece_type
 
     # Validate castling move
     elif len(dissapeared) == 2 and len(appeared) == 2:
-        if prev_board.piece_at(dissapeared[0]).piece_type != chess.KING:
+        # Keep king in front
+        if dissapeared[0][1].piece_type != chess.KING:
             dissapeared = [dissapeared[1], dissapeared[0]]
-        if current_board.piece_at(appeared[0]).piece_type != chess.KING:
+        if appeared[0][1].piece_type != chess.KING:
             appeared = [appeared[1], appeared[0]]
 
-        king_move = chess.Move(dissapeared[0], appeared[0])
-        rook_move = chess.Move(dissapeared[1], appeared[1])
+        # Validate pieces
+        if dissapeared[0][1].piece_type != chess.KING or dissapeared[0][1] != appeared[0][1]:
+            return None, False
 
-        if not prev_board.is_castling(king_move):
-            return None 
-        
+        if dissapeared[1][1].piece_type != chess.ROOK or dissapeared[1][1] != appeared[1][1]:
+            return None, False
+
+        if dissapeared[0][1].color != appeared[0][1].color:
+            return None, False
+
+        move = chess.Move(dissapeared[0][0], appeared[0][0])
+        rook_move = chess.Move(dissapeared[1][0], appeared[1][0])
+
         # Rook checks
-        color = prev_board.piece_at(king_move.from_square).color
-        expected_rook = chess.Piece(chess.ROOK, color)
-
-        if prev_board.piece_at(rook_move.from_square) != expected_rook or current_board.piece_at(rook_move.to_square) != expected_rook:
-            return None
-        
-        if rook_move != castle_rook_move(prev_board, king_move):
-            return None
-
-        return king_move
+        if rook_move != castle_rook_move(move):
+            return move, False
 
     # Validate en passant
     elif len(dissapeared) == 2 and len(appeared) == 1:
-        pawn_move_to = appeared[0]
-        if prev_board.is_en_passant(chess.Move(dissapeared[0], pawn_move_to)):
-            pawn_move_from = dissapeared[0]
-            en_passant_square = dissapeared[1]
-        elif prev_board.is_en_passant(chess.Move(dissapeared[1], pawn_move_to)):
-            pawn_move_from = dissapeared[1]
+        current_square = appeared[0][0]
+        if previous_board.is_en_passant(chess.Move(dissapeared[0][0], current_square)):
+            pawn_move_from = dissapeared[0][0]
+            en_passant_square = dissapeared[1][0]
+        elif previous_board.is_en_passant(chess.Move(dissapeared[1][0], current_square)):
+            pawn_move_from = dissapeared[1][0]
             en_passant_square = dissapeared[0]
         else:
-            return None
+            return None, False
 
-        move = chess.Move(pawn_move_from, pawn_move_to)
+        move = chess.Move(pawn_move_from, current_square)
 
         if en_passant_captured(move) != en_passant_square:
-            return None
+            return None, False
 
-        return move
-
-    return None
+    return move, bool(move) and move in previous_board.legal_moves
  
-def castle_rook_move(board: chess.Board, king_move: chess.Move) -> Optional[chess.Move]:
-    if board.piece_at(king_move.from_square).piece_type == chess.KING and board.is_castling(king_move):
-        rook_from, rook_to = None, None
-        if king_move.to_square == chess.G1:  # White kingside
-            rook_from = chess.H1
-            rook_to = chess.F1
-        elif king_move.to_square == chess.C1:  # White queenside
-            rook_from = chess.A1
-            rook_to = chess.D1
-        elif king_move.to_square == chess.G8:  # Black kingside
-            rook_from = chess.H8
-            rook_to = chess.F8
-        elif king_move.to_square == chess.C8:  # Black queenside
-            rook_from = chess.A8
-            rook_to = chess.D8
-        else:
-            return None
+def castle_rook_move(king_move: chess.Move) -> Optional[chess.Move]:
+    rook_from, rook_to = None, None
+    if king_move.to_square == chess.G1:  # White kingside
+        rook_from = chess.H1
+        rook_to = chess.F1
+    elif king_move.to_square == chess.C1:  # White queenside
+        rook_from = chess.A1
+        rook_to = chess.D1
+    elif king_move.to_square == chess.G8:  # Black kingside
+        rook_from = chess.H8
+        rook_to = chess.F8
+    elif king_move.to_square == chess.C8:  # Black queenside
+        rook_from = chess.A8
+        rook_to = chess.D8
+    else:
+        return None
 
-        return chess.Move(rook_from, rook_to)
-    return None
+    return chess.Move(rook_from, rook_to)
 
 
 def en_passant_captured(move: chess.Move):

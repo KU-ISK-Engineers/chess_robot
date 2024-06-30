@@ -194,12 +194,12 @@ def chess_engine_thread():
 
         if game.player == ROBOT:
             valid_move = game.robot_makes_move()
-            if valid_move is not None:
+            if valid_move:
                 chess_gui.move(valid_move.uci())
         elif game.player == HUMAN:
-            valid_move, detected_move = game.player_made_move()
-            if valid_move is not None:
-                chess_gui.move(valid_move.uci())
+            move, valid = game.player_made_move()
+            if move and valid:
+                chess_gui.move(move.uci())
 
 def select_level(level_value):
     game.set_depth(level_value)
