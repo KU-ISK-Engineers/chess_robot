@@ -5,6 +5,7 @@ import threading
 import chess
 import logging
 
+
 logger = logging.getLogger(__name__)
 
 win_count = 0
@@ -70,10 +71,7 @@ def update_robot_win_count():
     win_count += 1
     with open("robot_win_count.txt", "w") as file:
         file.write(str(win_count))
-    update_count_label()
-
-
-
+    
 def read_robot_count_from_file():
     global win_count
     try:
@@ -84,9 +82,6 @@ def read_robot_count_from_file():
                 logger.info(f"Robot wins: {win_count}")
     except FileNotFoundError:
         win_count = 0
-
-def update_count_label():
-    count_label.config(text=str(win_count))
 
 def show_check_msg():
     screen_width = root.winfo_screenwidth()
@@ -112,7 +107,6 @@ def show_wrong_move_msg():
     label.place(x=screen_width/2-image.width()/2, y=screen_height/2-image.height()/2)
     label.after(2000, label.destroy)  
     
-
 def clear_screen():
     for widget in root.winfo_children():
         if widget not in logo_widgets:
@@ -178,7 +172,6 @@ def background():
     count_label.place(x=x4 + killcount.width() // 2 - 20, y=230)
     logo_widgets.append(count_label)
 
-
 def chess_engine_thread():
     chess_gui = ChessGUI()
     while True:
@@ -204,21 +197,19 @@ def chess_engine_thread():
 def select_level(level_value):
     game.set_depth(level_value)
     color_screen()
-
-        
+      
 #in level screen: game.depth=level
 def level_screen():
     clear_screen()
 
-    screen_width = root.winfo_screenwidth()
-    screen_height = root.winfo_screenheight()
-
+    frame = tk.Frame(root, bd=0, background="#FFFFFF")
+    frame.place(x=450, y=200, width=700, height=720)
 
     choose_level = Image.open("images/choose_level.png")
     choose_level = ImageTk.PhotoImage(choose_level)
-    choose_label = tk.Label(root, image=choose_level, borderwidth=0)
+    choose_label = tk.Label(frame, image=choose_level, borderwidth=0)
     choose_label.image = choose_level
-    choose_label.place(x=(screen_width - choose_level.width()) // 2, y=(screen_height - choose_level.height()) // 2 - 200)
+    choose_label.place(x=0, y=0)
 
     level1_img = Image.open("images/beginner.png")
     level2_img = Image.open("images/intermediate.png")
@@ -230,21 +221,21 @@ def level_screen():
     level3_img = ImageTk.PhotoImage(level3_img)
     level4_img = ImageTk.PhotoImage(level4_img)
 
-    level1_button = tk.Button(root, image=level1_img, command=lambda: select_level(1), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
+    level1_button = tk.Button(frame, image=level1_img, command=lambda: select_level(1), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
     level1_button.image = level1_img
-    level1_button.place(x=(screen_width - level1_img.width()) // 2, y=(screen_height - choose_level.height()) // 2 - 50)
+    level1_button.place(x=0, y=150)
 
-    level2_button = tk.Button(root, image=level2_img, command=lambda: select_level(3), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
+    level2_button = tk.Button(frame, image=level2_img, command=lambda: select_level(3), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
     level2_button.image = level2_img
-    level2_button.place(x=(screen_width - level2_img.width()) // 2, y=(screen_height - choose_level.height()) // 2 + 75)
+    level2_button.place(x=0, y=280)
 
-    level3_button = tk.Button(root, image=level3_img, command=lambda: select_level(6), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
+    level3_button = tk.Button(frame, image=level3_img, command=lambda: select_level(6), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
     level3_button.image = level3_img
-    level3_button.place(x=(screen_width - level3_img.width()) // 2, y=(screen_height - choose_level.height()) // 2 + 200)
+    level3_button.place(x=0, y=400)
 
-    level4_button = tk.Button(root, image=level4_img, command=lambda: select_level(10), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
+    level4_button = tk.Button(frame, image=level4_img, command=lambda: select_level(10), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
     level4_button.image = level4_img
-    level4_button.place(x=(screen_width - level4_img.width()) // 2, y=(screen_height - choose_level.height()) // 2 + 325)
+    level4_button.place(x=0, y=520)
  
 
 #in color screen/assign_color: game.board.perspective=color, game.reset_board()
