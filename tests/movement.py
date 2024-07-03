@@ -37,30 +37,33 @@ class TestIdentifyMoveStart(unittest.TestCase):
             "g2f3", "g2h3",  # Invalid pawn captures by g2
             "h2g3", "h2f3"   # Invalid pawn captures by h2
         ]
-        assert_identify_moves(self, self.board, moves, as_sequence=False)
+        assert_identify_moves(self, self.board, moves, legal=False)
 
 
-def assert_identify_move(test_case: unittest.TestCase, board: chess.Board, expected_move: chess.Move | str,
-                         equal: bool = True):
+def assert_identify_move(test_case: unittest.TestCase, 
+                         board: chess.Board, 
+                         expected_move: chess.Move | str,
+                         expected_legal: bool = True):
     if isinstance(expected_move, str):
         expected_move = chess.Move.from_uci(expected_move)
 
     after_board = chess.Board(fen=board.fen())
     make_move(after_board, expected_move)
-    actual_move = identify_move(board, after_board)
+    actual_move, legal = identify_move(board, after_board)
 
-    if equal:
-        test_case.assertEqual(expected_move, actual_move)
-    else:
-        test_case.assertNotEqual(expected_move, actual_move)
+    test_case.assertEqual(expected_move, actual_move)
+    test_case.assertEqual(expected_legal, legal)
 
     return after_board
 
 
-def assert_identify_moves(test_case: unittest.TestCase, board: chess.Board, moves: Iterable[chess.Move | str],
-                          as_sequence: bool = False, equal: bool = True):
+def assert_identify_moves(test_case: unittest.TestCase, 
+                          board: chess.Board, 
+                          moves: Iterable[chess.Move | str],
+                          as_sequence: bool = False, 
+                          legal: bool = True):
     for move in moves:
-        after_board = assert_identify_move(test_case, board, move, equal=equal)
+        after_board = assert_identify_move(test_case, board, move, expected_legal=legal)
         if as_sequence:
             board = after_board
 
