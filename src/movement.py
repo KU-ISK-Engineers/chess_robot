@@ -6,6 +6,7 @@ from .board import RealBoard, SQUARE_CENTER
 
 logger = logging.getLogger(__name__)
 
+
 def reflect_move(board: RealBoard, move: chess.Move) -> int:
     """
     Makes move physically, does not save the move in board
@@ -55,6 +56,7 @@ def reflect_move(board: RealBoard, move: chess.Move) -> int:
 
     return response
 
+
 def move_piece(board: RealBoard, from_square: chess.Square, to_square: chess.Square, prev_response=robot.COMMAND_SUCCESS) -> int:
     """Assume move is valid, call before pushing move in memory!"""
     if prev_response == robot.COMMAND_SUCCESS:
@@ -83,13 +85,10 @@ def move_piece(board: RealBoard, from_square: chess.Square, to_square: chess.Squ
     else:
         return prev_response
 
-def identify_move(previous_board: chess.Board, current_board: chess.Board) -> tuple[Optional[chess.Move], bool]:
-    """
-    Don't forget to validate move afterwards before using it
-    """
 
+def identify_move(previous_board: chess.Board, current_board: chess.Board) -> tuple[Optional[chess.Move], bool]:
     # Find piece differences
-    dissapeared: list[tuple[chess.Square, chess.Piece]] = []
+    disappeared: list[tuple[chess.Square, chess.Piece]] = []
     appeared: list[tuple[chess.Square, chess.Piece]] = []
 
     for square in chess.SQUARES:
@@ -98,16 +97,16 @@ def identify_move(previous_board: chess.Board, current_board: chess.Board) -> tu
 
         if previous_piece != current_piece:
             if previous_piece and not current_piece:
-                dissapeared.append((square, previous_piece))
-            elif current_piece: # New piece or captured
+                disappeared.append((square, previous_piece))
+            elif current_piece:  # New piece or captured
                 appeared.append((square, current_piece))
 
     # Identify move
     move = None
 
     # Validate normal and promotion moves
-    if len(dissapeared) == 1 and len(appeared) == 1:
-        previous_square, previous_piece = dissapeared[0]
+    if len(disappeared) == 1 and len(appeared) == 1:
+        previous_square, previous_piece = disappeared[0]
         current_square, current_piece = appeared[0]
 
         move = chess.Move(previous_square, current_square)
@@ -121,43 +120,43 @@ def identify_move(previous_board: chess.Board, current_board: chess.Board) -> tu
             return move, False
         
         # Promotion exception
-        if previous_piece.piece_type == chess.PAWN and chess.square_rank(move.to_square) in (0,7):
+        if previous_piece.piece_type == chess.PAWN and chess.square_rank(move.to_square) in (0, 7):
             move.promotion = current_piece.piece_type
 
     # Validate castling move
-    elif len(dissapeared) == 2 and len(appeared) == 2:
+    elif len(disappeared) == 2 and len(appeared) == 2:
         # Keep king in front
-        if dissapeared[0][1].piece_type != chess.KING:
-            dissapeared = [dissapeared[1], dissapeared[0]]
+        if disappeared[0][1].piece_type != chess.KING:
+            disappeared = [disappeared[1], disappeared[0]]
         if appeared[0][1].piece_type != chess.KING:
             appeared = [appeared[1], appeared[0]]
 
         # Validate pieces
-        if dissapeared[0][1].piece_type != chess.KING or dissapeared[0][1] != appeared[0][1]:
+        if disappeared[0][1].piece_type != chess.KING or disappeared[0][1] != appeared[0][1]:
             return None, False
 
-        if dissapeared[1][1].piece_type != chess.ROOK or dissapeared[1][1] != appeared[1][1]:
+        if disappeared[1][1].piece_type != chess.ROOK or disappeared[1][1] != appeared[1][1]:
             return None, False
 
-        if dissapeared[0][1].color != appeared[0][1].color:
+        if disappeared[0][1].color != appeared[0][1].color:
             return None, False
 
-        move = chess.Move(dissapeared[0][0], appeared[0][0])
-        rook_move = chess.Move(dissapeared[1][0], appeared[1][0])
+        move = chess.Move(disappeared[0][0], appeared[0][0])
+        rook_move = chess.Move(disappeared[1][0], appeared[1][0])
 
         # Rook checks
         if rook_move != castle_rook_move(move):
             return move, False
 
     # Validate en passant
-    elif len(dissapeared) == 2 and len(appeared) == 1:
+    elif len(disappeared) == 2 and len(appeared) == 1:
         current_square = appeared[0][0]
-        if previous_board.is_en_passant(chess.Move(dissapeared[0][0], current_square)):
-            pawn_move_from = dissapeared[0][0]
-            en_passant_square = dissapeared[1][0]
-        elif previous_board.is_en_passant(chess.Move(dissapeared[1][0], current_square)):
-            pawn_move_from = dissapeared[1][0]
-            en_passant_square = dissapeared[0]
+        if previous_board.is_en_passant(chess.Move(disappeared[0][0], current_square)):
+            pawn_move_from = disappeared[0][0]
+            en_passant_square = disappeared[1][0]
+        elif previous_board.is_en_passant(chess.Move(disappeared[1][0], current_square)):
+            pawn_move_from = disappeared[1][0]
+            en_passant_square = disappeared[0]
         else:
             return None, False
 
@@ -167,19 +166,19 @@ def identify_move(previous_board: chess.Board, current_board: chess.Board) -> tu
             return None, False
 
     return move, bool(move) and move in previous_board.legal_moves
- 
+
+
 def castle_rook_move(king_move: chess.Move) -> Optional[chess.Move]:
-    rook_from, rook_to = None, None
-    if king_move.to_square == chess.G1:  # White kingside
+    if king_move.to_square == chess.G1:  # White king-side
         rook_from = chess.H1
         rook_to = chess.F1
-    elif king_move.to_square == chess.C1:  # White queenside
+    elif king_move.to_square == chess.C1:  # White queen-side
         rook_from = chess.A1
         rook_to = chess.D1
-    elif king_move.to_square == chess.G8:  # Black kingside
+    elif king_move.to_square == chess.G8:  # Black king-side
         rook_from = chess.H8
         rook_to = chess.F8
-    elif king_move.to_square == chess.C8:  # Black queenside
+    elif king_move.to_square == chess.C8:  # Black queen-side
         rook_from = chess.A8
         rook_to = chess.D8
     else:
@@ -194,11 +193,13 @@ def en_passant_captured(move: chess.Move):
     captured_square = move.to_square + direction
     return captured_square
 
+
 def is_en_passant(board, move):
     if board.piece_at(move.from_square).piece_type == chess.PAWN:
         if abs(move.from_square - move.to_square) in (7, 9) and not board.piece_at(move.to_square):
             return True
     return False
+
 
 def iter_reset_board(board: RealBoard, expected_board: RealBoard) -> Tuple[int, bool]:
     """

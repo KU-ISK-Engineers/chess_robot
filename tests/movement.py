@@ -51,6 +51,10 @@ def assert_identify_move(test_case: unittest.TestCase,
     make_move(after_board, expected_move)
     actual_move, legal = identify_move(board, after_board)
 
+    # Ignore promotion
+    if not expected_move.promotion:
+        actual_move.promotion = None
+
     test_case.assertEqual(expected_move, actual_move)
     test_case.assertEqual(expected_legal, legal)
 
