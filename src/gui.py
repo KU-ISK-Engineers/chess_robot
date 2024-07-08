@@ -4,67 +4,14 @@ from .game import HUMAN, ROBOT
 import threading
 import chess
 import logging
-
+import chess.svg
+import cairosvg
 
 logger = logging.getLogger(__name__)
 
 win_count = 0
 game_thread = None
 
-class ChessGUI:
-    def __init__(self):
-        self.root = root
-        self.board = chess.Board()
-        self.create_widgets()
-        self.piece_map = {
-            "r": "♜", "n": "♞", "b": "♝", "q": "♛", "k": "♚", "p": "♟",
-            "R": "♖", "N": "♘", "B": "♗", "Q": "♕", "K": "♔", "P": "♙"
-        }
-        self.draw_board()
-
-    def create_widgets(self):
-        self.frame = tk.Frame(self.root, bd=5, relief=tk.SUNKEN)
-        self.frame.place(x=550, y=200, width=640, height=640)
-        self.canvas = tk.Canvas(self.frame)
-        self.canvas.pack(fill=tk.BOTH, expand=True)
-        for row in range(8):
-            for col in range(8):
-                color = "white" if (row + col) % 2 == 0 else "gray"
-                x1 = col * 80
-                y1 = row * 80
-                x2 = x1 + 80
-                y2 = y1 + 80
-                self.canvas.create_rectangle(x1, y1, x2, y2, fill=color)
-
-    def draw_board(self):
-        self.canvas.delete("pieces")  
-
-        for i, square in enumerate(chess.SQUARES):
-            piece = self.board.piece_at(square)
-            if piece is not None:
-                row = chess.square_rank(square)
-                col = chess.square_file(square)
-                x = col * 80 + 40  # Centering the text within the square
-                y = (7 - row) * 80 + 40  # Centering the text within the square
-                self.canvas.create_text(x, y, text=self.piece_map[piece.symbol()], font=("Arial", 32), tags="pieces")
-
-    def move(self, coord):
-        move_str = coord
-        chess_move = self.parse_move(move_str)
-        if chess_move is not None:
-            self.make_move(chess_move)
-
-    def parse_move(self, move_str):
-        try:
-            from_square = chess.parse_square(move_str[:2])
-            to_square = chess.parse_square(move_str[2:])
-            return chess.Move(from_square, to_square)
-        except ValueError:
-            return None
-
-    def make_move(self, chess_move):
-        self.board.push(chess_move)
-        self.draw_board()
 def update_robot_win_count():
     global win_count
     read_robot_count_from_file()
@@ -172,8 +119,24 @@ def background():
     count_label.place(x=x4 + killcount.width() // 2 - 20, y=230)
     logo_widgets.append(count_label)
 
+def svg_board():
+    board =game.chess_board()
+
+    boardsvg = chess.svg.board(board, size=640) 
+
+    outputfile = open('images/board.svg', "w")
+    outputfile.write(boardsvg)
+    outputfile.close()
+
+    cairosvg.svg2png(url="images/board.svg", write_to="images/board.png")
+
+    image = Image.open("images/board.png")
+    image = ImageTk.PhotoImage(image)
+    label = tk.Label(root, image=image, borderwidth=0)
+    label.image = image
+    label.place(x=550, y=200)
+
 def chess_engine_thread():
-    chess_gui = ChessGUI()
     while True:
         state = game.result()
         root.after(0, update_turn)
@@ -182,23 +145,21 @@ def chess_engine_thread():
             print('Stopping game')
             return show_game_result()
         
-
         valid_move = None
 
         if game.player == ROBOT:
             valid_move = game.robot_makes_move()
             if valid_move:
-                chess_gui.move(valid_move.uci())
+                svg_board()
         elif game.player == HUMAN:
             move, valid = game.player_made_move()
             if move and valid:
-                chess_gui.move(move.uci())
+                svg_board()
 
 def select_level(level_value):
     game.set_depth(level_value)
     color_screen()
       
-#in level screen: game.depth=level
 def level_screen():
     clear_screen()
 
@@ -237,9 +198,6 @@ def level_screen():
     level4_button.image = level4_img
     level4_button.place(x=0, y=520)
  
-
-#in color screen/assign_color: game.board.perspective=color, game.reset_board()
- 
 def color_screen():
     clear_screen()
     # black doesn't work yet
@@ -273,7 +231,6 @@ def assign_color(selected_color):
     elif selected_color=='black':
         game.reset_board(perspective=chess.BLACK)                    
     game_screen()
-
 
 def show_game_result():
     clear_screen()
@@ -345,10 +302,6 @@ def update_turn():
         user_label.config(image=your_turn_active)
         user_label.image = your_turn_active
 
-
-    
-
-
 def game_screen():
     clear_screen()
     screen_height = root.winfo_screenheight()
@@ -392,7 +345,6 @@ def game_screen():
     global game_thread
     game_thread = threading.Thread(target=chess_engine_thread)
     game_thread.start()
-
 
 def gui_main(game_obj, fullscreen = True, splash = True):
     global root, game
