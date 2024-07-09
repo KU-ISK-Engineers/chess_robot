@@ -7,3 +7,4 @@ Pillow==10.3.0
 pypylon==3.0.1
 tkvideo==0.1
 ultralytics==8.2.35
+CairoSVG==2.7.1
