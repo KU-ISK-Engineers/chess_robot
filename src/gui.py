@@ -6,6 +6,7 @@ import chess
 import logging
 import chess.svg
 import cairosvg
+from io import BytesIO
 
 logger = logging.getLogger(__name__)
 
@@ -122,16 +123,13 @@ def background():
 def svg_board():
     board =game.chess_board()
 
-    boardsvg = chess.svg.board(board, size=640) 
+    boardsvg = chess.svg.board(board, size=640)
+    png_image = cairosvg.svg2png(bytestring=boardsvg)
 
-    outputfile = open('images/board.svg', "w")
-    outputfile.write(boardsvg)
-    outputfile.close()
-
-    cairosvg.svg2png(url="images/board.svg", write_to="images/board.png")
-
-    image = Image.open("images/board.png")
+    image = Image.open(BytesIO(png_image))
     image = ImageTk.PhotoImage(image)
+
+    # Display the image on the screen
     label = tk.Label(root, image=image, borderwidth=0)
     label.image = image
     label.place(x=550, y=200)
