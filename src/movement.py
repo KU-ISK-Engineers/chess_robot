@@ -9,10 +9,6 @@ logger = logging.getLogger(__name__)
 
 
 def reflect_move(board: RealBoard, move: chess.Move) -> int:
-    """
-    Makes move physically, does not save the move in board
-    """
-
     response = robot.COMMAND_SUCCESS
     from_square, to_square = (move.from_square, move.to_square)
 
@@ -58,7 +54,9 @@ def reflect_move(board: RealBoard, move: chess.Move) -> int:
     return response
 
 
-def move_piece(board: RealBoard, from_square: chess.Square, to_square: chess.Square, prev_response=robot.COMMAND_SUCCESS) -> int:
+def move_piece(board: RealBoard,
+               from_square: chess.Square,
+               to_square: chess.Square, prev_response=robot.COMMAND_SUCCESS) -> int:
     """Assume move is valid, call before pushing move in memory!"""
     if prev_response == robot.COMMAND_SUCCESS:
         offset = board.offset(from_square)
