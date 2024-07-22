@@ -78,7 +78,7 @@ def move_piece(board: RealBoard,
 
             logger.info(f"Moved piece {move_str} success")
         else:
-            logger.warning(f"Moved piece {move_str} failed!")
+            logger.error(f"Moved piece {move_str} failed")
 
         return response
     else:

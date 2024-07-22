@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 HUMAN = 0
 ROBOT = 1
 
+
 class Game:
     def __init__(self, 
                  detection: BoardDetection,
@@ -36,6 +37,8 @@ class Game:
                     move_pieces: bool = False):
         if perspective is None:
             perspective = self.board.perspective
+
+        logger.info(f'Resetting board {'white' if perspective == chess.WHITE else 'black'} perspective')
 
         expected_board = RealBoard(perspective=perspective)
 
@@ -72,8 +75,10 @@ class Game:
             result = self.engine.play(self.board.chess_board, chess.engine.Limit(depth=self.depth))
             move = result.move
 
+        logger.info("Robot making move %s", move.uci())
+
         if not move or not self.validate_move(move):
-            logger.error("Invalid robot move: %s", move.uci() if move else '')
+            logger.error("Invalid robot move: %s", move.uci())
             return 
 
         self.board.offsets = new_board.offsets
@@ -83,7 +88,6 @@ class Game:
         
         self.player = HUMAN
         self.board.push(move)
-        logger.info("Robot made move %s", move.uci())
         return move
     
     def player_made_move(self) -> tuple[Optional[chess.Move], bool]:
@@ -92,10 +96,11 @@ class Game:
             return None, False
 
         move, legal = movement.identify_move(self.board.chess_board, new_board.chess_board)
-        if move and legal:
-            self.player = ROBOT
-            self.board.push(move, to_offset=new_board.offset(move.to_square))
-            logger.info(f"Player made move {move.uci()}")
+        if move:
+            logger.info(f"Player made {'legal' if legal else 'illegal'} move {move.uci()}")
+            if legal:
+                self.player = ROBOT
+                self.board.push(move, to_offset=new_board.offset(move.to_square))
 
         return move, legal
 
@@ -119,6 +124,7 @@ class Game:
     def _reshape_board(self, expected_board: RealBoard) -> int:
         done = False
         current_board = self.board
+        logger.info('Reshaping game board')
 
         while not done:
             current_board = self.detection.capture_board(perspective=expected_board.perspective)

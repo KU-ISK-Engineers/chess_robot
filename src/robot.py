@@ -1,5 +1,4 @@
 import socket
-import time
 import chess
 import logging
 from .board import SquareOffset, SQUARE_CENTER
@@ -31,19 +30,26 @@ COMMAND_SUCCESS = 1
 ip_address = '192.168.1.6'
 port = 6001
 
+
 def setup_communication(new_ip_address: str = '192.168.1.6', new_port: int = 6001):
     global ip_address, port
 
     ip_address = new_ip_address
     port = new_port
 
+
 def reset_state():
     return issue_command("99 99 99 99")
+
 
 def off_board_square(piece_type: chess.PieceType, color: chess.Color) -> int:
     return OFF_BOARD_SQUARES[(piece_type, color)]
 
-def form_command(from_square: chess.Square, to_square: chess.Square, offset: SquareOffset = SQUARE_CENTER, perspective: chess.Color = chess.WHITE) -> str:
+
+def form_command(from_square: chess.Square,
+                 to_square: chess.Square,
+                 offset: SquareOffset = SQUARE_CENTER,
+                 perspective: chess.Color = chess.WHITE) -> str:
     # Convert to decimal percentage
     offset_x = int(max(min(offset.x * 100, 100), -100))
     offset_y = int(max(min(offset.y * 100, 100), -100))
@@ -67,6 +73,7 @@ def form_command(from_square: chess.Square, to_square: chess.Square, offset: Squ
     command_string = ' '.join(map(str, command_parts))
     
     return command_string
+
 
 def issue_command(command: str, timeout_max=DELAY_TIMEOUT) -> int:
     robot_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

@@ -5,26 +5,33 @@ from dev.board import EngineBoardDetection
 from dev.robot import patch_communication
 
 import chess.engine
+import chess.pgn
 import logging
 from typing import Optional
 import platform
 import argparse
 
+
 def load_engine(engine_path: Optional[str] = None):
     os_name = platform.system()
+    arch = platform.machine()
+
     if not engine_path:
-        if os_name == 'Windows':
+        if os_name == 'Windows' and arch in ['x86_64', 'AMD64']:
             engine_path = 'dev/stockfish_windows/stockfish-windows-x86-64-avx2.exe'
-        elif os_name == 'Linux':
+        elif os_name == 'Linux' and arch == 'x86_64':
             engine_path = 'dev/stockfish_linux/stockfish-ubuntu-x86-64-avx2'
         else:
-            raise SystemError(f"{os_name} is not supported for stockfish")
+            raise SystemError(f"{arch} {os_name} is not supported for stockfish")
 
     logging.info(f"Selected stockfish path for {os_name}: {engine_path}")
     engine = chess.engine.SimpleEngine.popen_uci(engine_path)
     return engine
 
+
 def main(delay: float, engine_path: Optional[str]):
+    game = None
+
     try:
         # TODO: Better logging
         logging.basicConfig(format='%(asctime)s %(levelname)s:%(name)s:%(message)s', datefmt='%x %X', level=logging.INFO, handlers=[
@@ -32,7 +39,7 @@ def main(delay: float, engine_path: Optional[str]):
             logging.FileHandler("log.txt")
         ])
         
-        patch_communication(new_delay = delay)
+        patch_communication(new_delay=delay)
 
         engine = load_engine(engine_path)
 
@@ -47,6 +54,21 @@ def main(delay: float, engine_path: Optional[str]):
     except Exception as e:
         logging.exception(e)
 
+        if game:
+            pgn = board_to_pgn(game.chess_board())
+            logging.error(pgn)
+
+
+def board_to_pgn(board: chess.Board) -> chess.pgn.Game:
+    game = chess.pgn.Game()
+    node = game
+
+    for move in board.move_stack:
+        node = node.add_variation(move)
+
+    return game
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="A script to process delay and engine path.")
 
@@ -54,7 +76,7 @@ if __name__ == "__main__":
         '--delay',
         type=float,
         default=0,
-        help="Optional delay from robot communication immitation."
+        help="Optional delay from robot communication imitation."
     )
 
     parser.add_argument(
