@@ -16,13 +16,17 @@ class Game:
     def __init__(self, 
                  detection: BoardDetection,
                  engine: chess.engine.SimpleEngine,
+                 board: Optional[chess.Board] = None,
                  perspective: chess.Color = chess.WHITE,
                  depth: int = 4) -> None:
         self.detection = detection
         self.depth = depth
         self.engine = engine
 
-        self.board = RealBoard(perspective=perspective)
+        if not board:
+            board = chess.Board()
+
+        self.board = RealBoard(board=board, perspective=perspective)
 
         if perspective == chess.WHITE:
             self.player = HUMAN
@@ -32,22 +36,25 @@ class Game:
         self.resigned = False
         robot.reset_state()
 
-    def reset_board(self, 
+    def reset_board(self,
+                    board: Optional[chess.Board] = None,
                     perspective: Optional[chess.Color] = None, 
                     move_pieces: bool = False):
         if perspective is None:
             perspective = self.board.perspective
 
-        logger.info(f'Resetting board {'white' if perspective == chess.WHITE else 'black'} perspective')
+        if not board:
+            board = chess.Board()
 
-        expected_board = RealBoard(perspective=perspective)
+        self.board = RealBoard(board=board, perspective=perspective)
+
+        fen = self.board.chess_board.fen()
+        logger.info(f'Resetting board {'white' if perspective == chess.WHITE else 'black'} perspective FEN {fen}')
 
         if move_pieces:
-            response = self._reshape_board(expected_board)
+            response = self._reshape_board(self.board)
             if response != robot.COMMAND_SUCCESS:
                 raise RuntimeError("Robot hand timed out")
-        else:
-            self.board = expected_board
 
         if self.board.perspective == chess.WHITE:
             self.player = HUMAN

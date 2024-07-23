@@ -1,7 +1,7 @@
 from src.gui import gui_main
 from src.game import Game
 
-from dev.board import EngineBoardDetection
+from dev.board import MockEngineBoardDetection
 from dev.robot import patch_communication
 
 import chess.engine
@@ -33,17 +33,11 @@ def main(delay: float, engine_path: Optional[str]):
     game = None
 
     try:
-        # TODO: Better logging
-        logging.basicConfig(format='%(asctime)s %(levelname)s:%(name)s:%(message)s', datefmt='%x %X', level=logging.INFO, handlers=[
-            logging.StreamHandler(),
-            logging.FileHandler("log.txt")
-        ])
-        
         patch_communication(new_delay=delay)
 
         engine = load_engine(engine_path)
 
-        detection = EngineBoardDetection(engine)
+        detection = MockEngineBoardDetection(engine, delay=delay)
 
         game = Game(detection, engine)
 
@@ -55,8 +49,9 @@ def main(delay: float, engine_path: Optional[str]):
         logging.exception(e)
 
         if game:
-            pgn = board_to_pgn(game.chess_board())
-            logging.error(pgn)
+            board = game.chess_board()
+            logging.error(f"Game position PGN {board_to_pgn(board)}")
+            logging.error(f"Last move FEN {board.fen()}")
 
 
 def board_to_pgn(board: chess.Board) -> chess.pgn.Game:
@@ -70,6 +65,12 @@ def board_to_pgn(board: chess.Board) -> chess.pgn.Game:
 
 
 if __name__ == "__main__":
+    logging.basicConfig(format='%(asctime)s %(levelname)s:%(name)s:%(message)s', datefmt='%x %X', level=logging.INFO,
+                        handlers=[
+                            logging.StreamHandler(),
+                            logging.FileHandler("log.txt")
+                        ])
+
     parser = argparse.ArgumentParser(description="A script to process delay and engine path.")
 
     parser.add_argument(

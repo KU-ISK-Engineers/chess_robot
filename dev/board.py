@@ -1,11 +1,17 @@
+import logging
+
 from src.board import RealBoard, BoardDetection
 from src.game import Game, ROBOT
 import chess
 import chess.pgn
 import chess.engine
 from typing import Optional, TextIO
+import time
 
-class PGNBoardDetection(BoardDetection):
+logger = logging.getLogger(__name__)
+
+
+class MockPGNBoardDetection(BoardDetection):
     def __init__(self, pgn: TextIO):
         pgn_game = chess.pgn.read_game(pgn)
         if not pgn_game:
@@ -39,11 +45,18 @@ class PGNBoardDetection(BoardDetection):
         self.board.push(move)
         return move
 
-class EngineBoardDetection(BoardDetection):
-    def __init__(self, engine: chess.engine.SimpleEngine, game: Optional[Game] = None, depth: int = 4):
+
+class MockEngineBoardDetection(BoardDetection):
+    def __init__(self,
+                 engine: chess.engine.SimpleEngine,
+                 game: Optional[Game] = None,
+                 depth: int = 4,
+                 delay: float = 0):
         self.engine = engine
         self.game = game
         self.depth = depth
+        self.delay = delay
+        logging.info(f"Initialised mock board detection using chess engine delay {delay} s")
 
     def attach_game(self, game: Game):
         self.game = game
@@ -65,5 +78,7 @@ class EngineBoardDetection(BoardDetection):
             raise RuntimeError(f"Engine did not make a valid move ({move_uci}).")
 
         board.push(move)
+
+        time.sleep(self.delay)
         return RealBoard(board=board, perspective=perspective)
 

@@ -56,7 +56,8 @@ def reflect_move(board: RealBoard, move: chess.Move) -> int:
 
 def move_piece(board: RealBoard,
                from_square: chess.Square,
-               to_square: chess.Square, prev_response=robot.COMMAND_SUCCESS) -> int:
+               to_square: chess.Square, 
+               prev_response=robot.COMMAND_SUCCESS) -> int:
     """Assume move is valid, call before pushing move in memory!"""
     if prev_response == robot.COMMAND_SUCCESS:
         offset = board.offset(from_square)

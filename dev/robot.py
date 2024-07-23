@@ -4,11 +4,13 @@ import time
 
 delay = 0
 
+
 def issue_command(command: str, timeout_max=robot.DELAY_TIMEOUT) -> int:
     time.sleep(delay)
     return robot.COMMAND_SUCCESS
 
-def patch_communication(new_delay : float = 0):
+
+def patch_communication(new_delay: float = 0):
     global delay
     delay = new_delay
 
