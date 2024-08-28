@@ -4,13 +4,14 @@ from ultralytics import YOLO
 import chess
 import chess.svg
 import numpy as np
-from .board import RealBoard, SquareOffset
+from .board import PhysicalBoard, SquareOffset
 
 # Minimum piece detection confidence threshold
 THRESHOLD_CONFIDENCE = 0.5
 
 # Minimum distance percentage of the piece from the square center
 THRESHOLD_DISTANCE = 0.7
+
 
 class MappedSquare(NamedTuple):
     chess_square: chess.Square
@@ -19,6 +20,7 @@ class MappedSquare(NamedTuple):
     confidence: float
 
 # --- PIECE DETECTION ---
+
 
 def detect_greyscale(image: np.ndarray, model: YOLO) -> tuple[list, list[str], list[float]]:
     # For greyscale
@@ -45,6 +47,7 @@ def detect_greyscale(image: np.ndarray, model: YOLO) -> tuple[list, list[str], l
     return bbox, label, conf
 
 # --- MAPPING TO SQUARES ---
+
 
 def map_bboxes_to_squares(image: np.ndarray, bbox: list, label: list[str], confidence: list[float]) -> list[MappedSquare]:
     img_height, img_width = image.shape[:2]
@@ -82,10 +85,11 @@ def map_bboxes_to_squares(image: np.ndarray, bbox: list, label: list[str], confi
 
     return mapped_squares
 
+
 # --- MAPPING TO BOARD ---
-def map_squares_to_board(mapped_squares: list[MappedSquare], flip: bool = False) -> RealBoard:
-    board = RealBoard()
-    board.clear_board()
+def map_squares_to_board(mapped_squares: list[MappedSquare], flip: bool = False) -> PhysicalBoard:
+    board = PhysicalBoard()
+    board.chess_board.clear_board()
     
     for mapped_square in mapped_squares:
         if flip:
@@ -98,9 +102,11 @@ def map_squares_to_board(mapped_squares: list[MappedSquare], flip: bool = False)
         piece = label_to_piece(mapped_square.label)
         
         # Place the piece on the board
-        board.set_piece_at(chess_square, piece, offset=offset)
+        board.chess_board.set_piece_at(chess_square, piece)
+        board.set_piece_offset(chess_square, offset)
         
     return board
+
 
 def label_to_piece(label: str) -> Optional[chess.Piece]:
     piece_mapping = {
@@ -120,12 +126,14 @@ def label_to_piece(label: str) -> Optional[chess.Piece]:
 
     return piece_mapping.get(label)
 
-def greyscale_to_board(image: np.ndarray, model: YOLO, flip: bool = False) -> RealBoard:
+
+def greyscale_to_board(image: np.ndarray, model: YOLO, flip: bool = False) -> PhysicalBoard:
     bbox, label, conf = detect_greyscale(image, model)
     mapped_squares = map_bboxes_to_squares(image, bbox, label, conf)
 
     board = map_squares_to_board(mapped_squares, flip)
     return board
+
 
 def crop_image_by_area(image: np.ndarray, area) -> np.ndarray:
     (tl, tr, bl, br) = area
@@ -143,7 +151,7 @@ def crop_image_by_area(image: np.ndarray, area) -> np.ndarray:
         [max_width - 1, max_height - 1],
         [0, max_height - 1]], dtype="float32")
 
-    M = cv2.getPerspectiveTransform(area, dst)
-    warped = cv2.warpPerspective(image, M, (max_width, max_height))
+    m = cv2.getPerspectiveTransform(area, dst)
+    warped = cv2.warpPerspective(image, m, (max_width, max_height))
     return warped
 

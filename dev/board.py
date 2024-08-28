@@ -1,6 +1,6 @@
 import logging
 
-from src.board import RealBoard, BoardDetection
+from src.board import PhysicalBoard, BoardDetection
 from src.game import Game, ROBOT
 import chess
 import chess.pgn
@@ -25,7 +25,7 @@ class MockPGNBoardDetection(BoardDetection):
     def attach_game(self, game: Game):
         self.game = game
 
-    def capture_board(self, perspective: chess.Color = chess.WHITE) -> Optional[RealBoard]:
+    def capture_board(self, perspective: chess.Color = chess.WHITE) -> Optional[PhysicalBoard]:
         if not self.game:
             raise ValueError("Cannot capture board without attaching a game.")
 
@@ -38,7 +38,7 @@ class MockPGNBoardDetection(BoardDetection):
         if not move:
             raise RuntimeError("No more moves remaining")
 
-        return RealBoard(board=chess.Board(fen=self.board.fen()), perspective=perspective)
+        return PhysicalBoard(chess_board=chess.Board(fen=self.board.fen()), perspective=perspective)
 
     def next_move(self) -> chess.Move:
         move = next(self.move)
@@ -61,14 +61,14 @@ class MockEngineBoardDetection(BoardDetection):
     def attach_game(self, game: Game):
         self.game = game
 
-    def capture_board(self, perspective: chess.Color = chess.WHITE) -> Optional[RealBoard]:
+    def capture_board(self, perspective: chess.Color = chess.WHITE) -> Optional[PhysicalBoard]:
         if not self.game:
             raise ValueError("Cannot capture board without attaching a game.")
 
         board = chess.Board(fen=self.game.chess_board().fen())
 
         if self.game.player == ROBOT:
-            return RealBoard(board=board, perspective=perspective)
+            return PhysicalBoard(chess_board=board, perspective=perspective)
 
         result = self.engine.play(board, chess.engine.Limit(depth=self.depth))
         move = result.move
@@ -80,5 +80,5 @@ class MockEngineBoardDetection(BoardDetection):
         board.push(move)
 
         time.sleep(self.delay)
-        return RealBoard(board=board, perspective=perspective)
+        return PhysicalBoard(chess_board=board, perspective=perspective)
 

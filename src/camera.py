@@ -6,11 +6,12 @@ from ultralytics import YOLO
 import numpy as np
 import time
 from .aruco import detect_aruco_area
-from .board import RealBoard, BoardDetection, boards_are_equal
+from .board import PhysicalBoard, BoardDetection, boards_are_equal
 from .image import crop_image_by_area, greyscale_to_board
 import logging
 
 logger = logging.getLogger(__name__)
+
 
 def default_camera_setup():
     camera = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateFirstDevice())
@@ -24,6 +25,12 @@ def default_camera_setup():
     camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
 
     return camera
+
+
+def _preprocess_image(image: np.ndarray) -> np.ndarray:
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    return image
+
 
 class CameraBoardDetection(BoardDetection):
     def __init__(self, model: YOLO, camera: Optional[pylon.InstantCamera] = None, timeout: int = 5000) -> None:
@@ -51,7 +58,7 @@ class CameraBoardDetection(BoardDetection):
                 continue
 
             image = grab_result.Array
-            image = self._preprocess_image(image)
+            image = _preprocess_image(image)
             cropped_image = self._crop_image(image)
 
             if cropped_image is None:
@@ -60,7 +67,7 @@ class CameraBoardDetection(BoardDetection):
 
         return cropped_image
 
-    def capture_board(self, perspective: chess.Color = chess.WHITE) -> Optional[RealBoard]:
+    def capture_board(self, perspective: chess.Color = chess.WHITE) -> Optional[PhysicalBoard]:
         image1 = self.capture_image()
         if not image1:
             return
@@ -76,10 +83,6 @@ class CameraBoardDetection(BoardDetection):
         if boards_are_equal(board1.chess_board, board2.chess_board):
             board2.perspective = perspective
             return board2
-
-    def _preprocess_image(self, image: np.ndarray) -> np.ndarray:
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        return image
 
     def _crop_image(self, image: np.ndarray) -> Optional[np.ndarray]:
         area = detect_aruco_area(image)
