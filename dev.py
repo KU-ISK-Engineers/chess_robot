@@ -1,4 +1,4 @@
-from src.gui import gui_main
+from src.ui.gui import gui_main
 from src.game import Game
 
 from dev.board import MockEngineBoardDetection

@@ -1,12 +1,14 @@
+import logging
+import threading
+from io import BytesIO
+
 import tkinter as tk
 from PIL import Image, ImageTk
-from .game import HUMAN, ROBOT
-import threading
 import chess
-import logging
 import chess.svg
 import cairosvg
-from io import BytesIO
+
+from src.core.game import HUMAN, ROBOT
 
 logger = logging.getLogger(__name__)
 
