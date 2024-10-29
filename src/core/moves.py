@@ -1,13 +1,12 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import NamedTuple, Optional, Tuple
+from typing import NamedTuple, Optional, Tuple, List
 
 import chess
 
 from src.core.board import OFFSET_SQUARE_CENTER, PhysicalBoard, PieceOffset
 
 logger = logging.getLogger(__name__)
-
 
 OFF_BOARD_SQUARES = {
     (chess.ROOK, chess.WHITE): -1,
@@ -25,20 +24,19 @@ OFF_BOARD_SQUARES = {
 }
 
 
-def off_board_square(piece_type: chess.PieceType, color: chess.Color) -> int:
+def off_board_square(piece_type: chess.PieceType, piece_color: chess.Color) -> int:
     """Returns the coordinate of the specified piece when placed off the board (e.g., after capture).
 
     Args:
         piece_type (chess.PieceType): The type of the piece (e.g., pawn, rook).
-        color (chess.Color): The color of the piece (chess.WHITE or chess.BLACK).
+        piece_color (chess.Color): The color of the piece (chess.WHITE or chess.BLACK).
 
     Returns:
         int: The coordinate representing the off-board location for the given piece.
     """
-    return OFF_BOARD_SQUARES[(piece_type, color)]
+    return OFF_BOARD_SQUARES[(piece_type, piece_color)]
 
 
-# TODO: Why was there perspective?
 class PieceMover(ABC):
     """Abstract class representing an interface for moving pieces on a physical board."""
 
@@ -47,19 +45,17 @@ class PieceMover(ABC):
         self,
         from_square: chess.Square,
         to_square: chess.Square,
-        piece_offset: PieceOffset = OFFSET_SQUARE_CENTER,
-        physical_perspective: chess.COLOR = chess.WHITE,
+        color: chess.Color,
+        origin_offset: PieceOffset,
     ) -> bool:
         """Moves a piece from one square to another on a physical board.
 
         Args:
-            from_square (chess.Square): The starting square of the piece.
+            from_square (chess.Square): The starting square of the piece to be moved.
             to_square (chess.Square): The destination square for the piece.
-            offset (SquareOffset, optional): Offset for piece placement on the destination square.
-                Defaults to the center of the square.
-            physical_perspective (chess.Color, optional): The physical perspective of the player (e.g., chess.WHITE or chess.BLACK).
-                If chess.WHITE, the board is unrotated. If chess.BLACK, the board is rotated along the Y-axis to align
-                with the black perspective. Defaults to chess.WHITE.
+            color (chess.Color): The color perspective of the mover (e.g., chess.WHITE or chess.BLACK).
+            origin_offset (PieceOffset): The offset of the piece's original location on the `from_square`,
+                relative to the square's center.
 
         Returns:
             bool: True if the move was successfully executed on the physical board, False otherwise.
@@ -68,36 +64,44 @@ class PieceMover(ABC):
 
     @abstractmethod
     def reset(self) -> bool:
-        """Forces PieceMover to reset state, e.g reset counts for off-board locations
+        """Resets the PieceMover's state, such as clearing off-board piece counts.
 
         Returns:
-            bool: True if operation was successful, False otherwise
+            bool: True if the reset operation was successful, False otherwise.
         """
         pass
 
 
-def reflect_move(mover: PieceMover, board: PhysicalBoard, move: chess.Move) -> bool:
+def execute_move(
+    mover: PieceMover, board: PhysicalBoard, move: chess.Move, color: chess.Color
+) -> bool:
     """
-    Executes a move on the physical board, handling both simple and complex moves (e.g., castling, captures).
+    Executes a specified chess move on a physical board, handling various types of moves
+    such as standard moves, captures, castling, and en passant.
 
-    Note:
-        This function must be called before saving the move on the `chess.Board`, as it relies
-        on the pre-move position to determine the steps required to execute the move.
+    This function should be called before the move is saved on the `chess.Board` object,
+    as it relies on the board's current state to determine the necessary piece movements.
 
     Args:
-        mover (PieceMover): The `PieceMover` instance responsible for physically moving pieces.
-        board (PhysicalBoard): The current state of the physical board.
-        move (chess.Move): The chess move to be executed on the physical board.
+        mover (PieceMover): The `PieceMover` instance responsible for physically moving
+            pieces on the board.
+        board (PhysicalBoard): The current physical board representation, including piece
+            positions and offsets.
+        move (chess.Move): The chess move to execute, represented as a `chess.Move` object
+            containing the starting and destination squares.
+        color (chess.Color): The color of the piece being moved, where `True` indicates
+            white and `False` indicates black.
 
     Returns:
-        bool: True if the move was successfully executed on the physical board, False otherwise.
+        bool: `True` if the move was successfully executed on the physical board;
+              `False` if any step of the move sequence failed.
     """
     steps = expand_moves(board.chess_board, move)
     if not steps:
         return False
 
     for from_square, to_square in steps:
-        if not move_piece(mover, board, from_square, to_square):
+        if not move_piece(mover, board, from_square, to_square, color):
             return False
 
     return True
@@ -105,7 +109,7 @@ def reflect_move(mover: PieceMover, board: PhysicalBoard, move: chess.Move) -> b
 
 def expand_moves(
     chess_board: chess.Board, move: chess.Move
-) -> list[tuple[chess.Square, chess.Square]]:
+) -> List[Tuple[chess.Square, chess.Square]]:
     """
     Expands a chess move into individual piece movements, including special moves (e.g., captures, castling).
 
@@ -118,7 +122,7 @@ def expand_moves(
         move (chess.Move): The chess move to expand into individual movements.
 
     Returns:
-        list[tuple[chess.Square, chess.Square]]: A list of individual piece movements (from-square to to-square)
+        List[Tuple[chess.Square, chess.Square]]: A list of individual piece movements (from-square to to-square)
             required to complete the move on the physical board.
     """
     from_square, to_square = (move.from_square, move.to_square)
@@ -177,55 +181,72 @@ def move_piece(
     board: PhysicalBoard,
     from_square: chess.Square,
     to_square: chess.Square,
+    color: chess.Color,
 ) -> bool:
     """
-    Moves a piece from one square to another on the physical board, updating square offsets.
+    Moves a piece from one square to another on the physical board, updating square offsets
+    as needed. This function directly handles physical piece movement and does not check
+    the move's legality.
 
     Args:
-        mover (PieceMover): The PieceMover instance to perform the move.
-        board (PhysicalBoard): The board instance where the move is executed.
-        from_square (chess.Square): Starting square of the move.
-        to_square (chess.Square): Target square of the move.
+        mover (PieceMover): The `PieceMover` instance responsible for moving pieces on the
+            physical board.
+        board (PhysicalBoard): The board instance representing the current state of the
+            physical board.
+        from_square (chess.Square): The starting square of the piece to be moved.
+        to_square (chess.Square): The target square for the piece.
+        color (chess.Color): The color perspective of the move, indicating the mover's
+            perspective (e.g., `True` for white, `False` for black).
 
     Returns:
-        bool: True if the piece was moved successfully, False otherwise.
+        bool: `True` if the piece was moved successfully on the physical board; `False` otherwise.
     """
-
-    if 0 <= from_square <= 63:
-        offset = board.piece_offset(from_square)
+    
+    if from_square in chess.SQUARES:
+        origin_offset = board.get_piece_offset(from_square, color)
     else:
-        offset = OFFSET_SQUARE_CENTER
+        origin_offset = OFFSET_SQUARE_CENTER
 
     move_str = piece_move_str(from_square, to_square)
-    res = mover.move_piece(from_square, to_square, offset, board.perspective)
+    res = mover.move_piece(from_square, to_square, color, origin_offset)
     if not res:
         logger.error(f"Moved piece {move_str} failed")
         return False
 
     # Update board offsets
-    if 0 <= from_square <= 63:
-        board.set_piece_offset(from_square, OFFSET_SQUARE_CENTER)
+    if from_square in chess.SQUARES:
+        board.set_piece_offset(from_square, color)
 
-    if 0 <= to_square <= 63:
-        board.set_piece_offset(to_square, offset)
+    if to_square in chess.SQUARES:
+        board.set_piece_offset(to_square, color)
 
     logger.info(f"Moved piece {move_str} success")
     return True
 
 
 def iter_reset_board(
-    mover: PieceMover, board: PhysicalBoard, expected_board: PhysicalBoard
+    mover: PieceMover,
+    board: PhysicalBoard,
+    expected_board: PhysicalBoard,
+    color: chess.Color,
 ) -> Tuple[bool, bool]:
     """
-    Iteratively arranges pieces on the physical board to match the expected board state.
+    Iteratively rearranges pieces on the physical board to align with the expected board state.
+
+    This function compares the current board state with an expected target state and makes
+    adjustments as necessary, moving pieces directly to their target positions if possible,
+    or using empty squares as temporary positions when needed.
 
     Args:
-        mover (PieceMover): The PieceMover instance to perform the move.
-        board (PhysicalBoard): The current physical board state.
-        expected_board (PhysicalBoard): The expected target board state.
+        mover (PieceMover): The `PieceMover` instance responsible for executing physical moves.
+        board (PhysicalBoard): The current physical state of the board, representing the
+            actual positions of pieces.
+        expected_board (PhysicalBoard): The desired target state for the board, with pieces
+            in their intended positions.
+        color (chess.Color): The color perspective of the `PieceMover` instance.
 
     Returns:
-        Tuple[bool, bool]: The first boolean indicates if a piece was moved; the second if the board matches the expected state.
+        Tuple[bool, bool]: A tuple containing two values: First `True` if any piece was moved, second `True` if physical board matches expected board
     """
     # Create mappings for current and expected piece positions
     current_positions = {
@@ -263,14 +284,14 @@ def iter_reset_board(
         if piece in current_positions.values():
             for start_square, current_piece in list(current_positions.items()):
                 if current_piece == piece:
-                    return move_piece(mover, board, start_square, square), False
+                    return move_piece(mover, board, start_square, square, color), False
 
     # Second pass: move remaining pieces out of the way, using empty squares as intermediate holding spots
     for start_square, piece in list(current_positions.items()):
         if piece not in expected_positions.values():
             if empty_squares:
                 temp_square = empty_squares.pop(0)
-                return move_piece(mover, board, start_square, temp_square), False
+                return move_piece(mover, board, start_square, temp_square, color), False
 
     # Third pass: place pieces in their final positions from temporary spots or off-board
     for square, piece in list(expected_positions.items()):
@@ -283,10 +304,7 @@ def iter_reset_board(
         if origin_square is None:
             origin_square = off_board_square(piece.piece_type, piece.color)
 
-        return move_piece(mover, board, origin_square, square), False
-
-    board.chess_board = expected_board.chess_board
-    board.perspective = expected_board.perspective
+        return move_piece(mover, board, origin_square, square, color), False
 
     return False, True
 
@@ -298,7 +316,7 @@ class SquarePiece(NamedTuple):
 
 def identify_move(
     previous_board: chess.Board, current_board: chess.Board
-) -> tuple[Optional[chess.Move], bool]:
+) -> Tuple[Optional[chess.Move], bool]:
     """
     Identifies the move played by comparing two board states.
 
@@ -307,7 +325,7 @@ def identify_move(
         current_board (chess.Board): The board state after the move.
 
     Returns:
-        tuple[Optional[chess.Move], bool]: The identified move and a boolean indicating if it is legal.
+        Tuple[Optional[chess.Move], bool]: The identified move and a boolean indicating if it is legal.
     """
     disappeared: list[SquarePiece] = []
     appeared: list[SquarePiece] = []

@@ -1,4 +1,4 @@
-from typing import Optional, NamedTuple
+from typing import Optional, NamedTuple, List
 from abc import ABC, abstractmethod
 
 import chess
@@ -7,112 +7,152 @@ import chess
 class PieceOffset(NamedTuple):
     """Represents an offset from the center of a square for a chess piece.
 
-    The offset is measured in x and y directions, with (0, 0) representing
-    the center of the square.
+    The offset is measured in `x` and `y` directions, with (0.0, 0.0) representing
+    the center of the square. The values range from -1.0 to +1.0, where -1.0 indicates
+    the left or bottom edge, and +1.0 indicates the right or top edge.
 
     Attributes:
-        x (float): Offset from the center in the x-direction.
-        y (float): Offset from the center in the y-direction.
+        x (float): Horizontal offset from the center of the square.
+            0.0 represents the center, -1.0 represents the left edge,
+            and +1.0 represents the right edge.
+        y (float): Vertical offset from the center of the square.
+            0.0 represents the center, -1.0 represents the bottom edge,
+            and +1.0 represents the top edge.
     """
 
     x: float
     y: float
 
 
+def flip_offset(offset: PieceOffset) -> PieceOffset:
+    """Flips the coordinates of a given offset to represent the opposite perspective.
+
+    Args:
+        offset (PieceOffset): The original offset to flip, representing a piece's position
+            within its square from a specific perspective.
+
+    Returns:
+        PieceOffset: A new `PieceOffset` instance with x and y coordinates inverted,
+            representing the offset from the opposite perspective.
+    """
+    return PieceOffset(-offset.x, -offset.y)
+
+
 OFFSET_SQUARE_CENTER = PieceOffset(0, 0)
 
 
 class PhysicalBoard:
-    """Represents a physical chessboard with piece offsets and color perspective.
+    """Represents a physical chessboard with relative piece offsets.
 
-    The `perspective` attribute specifies which side of the board is physically
-    oriented as white, affecting how pieces and offsets are viewed and managed.
+    This class manages the physical layout of a chessboard, including the relative
+    positions (offsets) of pieces on each square. Offsets are defined from White's
+    perspective by default, meaning White is positioned at the bottom of the board.
+    Depending on the specified perspective, offsets can be flipped to reflect Black's
+    viewpoint.
 
     Attributes:
-        chess_board (chess.Board): The logical state of the chessboard.
-        piece_offsets (list[SquareOffset]): List of offsets for each square, indicating
-            the position of pieces relative to each square's center.
-        perspective (chess.Color): The board's color perspective (chess.WHITE or chess.BLACK),
-            indicating the side that is physically facing the player as white.
+        chess_board (chess.Board): The current game board represented as a `chess.Board` instance.
+        piece_offsets (List[List[PieceOffset]]): A 2D list (8x8) of `PieceOffset` objects, each representing the relative
+            offset of a piece on a given square. Offsets are from white perspective.
     """
 
     def __init__(
         self,
         chess_board: Optional[chess.Board] = None,
-        piece_offsets: Optional[list[PieceOffset]] = None,
-        physical_perspective: chess.Color = chess.WHITE,
+        piece_offsets: Optional[List[List[PieceOffset]]] = None,
+        perspective: chess.Color = chess.WHITE,
     ):
-        """Initializes the PhysicalBoard with a chess board, optional piece offsets, and a color perspective.
+        """Initializes the PhysicalBoard with a chessboard, piece offsets, and color perspective.
 
         Args:
-            chess_board (Optional[chess.Board]): An instance of `chess.Board` representing the current game state.
-                If None, a new `chess.Board` is initialized.
-            piece_offsets (Optional[list[SquareOffset]]): A list of `SquareOffset` values for each square,
-                representing the relative position of pieces on the board. Defaults to center each piece at (0,0).
-            perspective (chess.Color): The color perspective (chess.WHITE or chess.BLACK) indicating which side
-                is considered "white" in the physical layout. Defaults to chess.WHITE.
+            chess_board (Optional[chess.Board]): An instance of `chess.Board` representing the current game board.
+                If None, a new `chess.Board` is initialized to represent the default starting position.
+            piece_offsets (Optional[List[List[PieceOffset]]]): A 2D list (8x8) of `PieceOffset` instances, each indicating the
+                relative position of a piece within its square on the board. If None, defaults to positioning
+                each piece at the center (0, 0) of its square.
+            perspective (chess.Color): The color perspective (chess.WHITE or chess.BLACK) that determines
+                the board's orientation. The offsets are flipped to represent the board as viewed from that perspective.
         """
 
         if chess_board is None:
             chess_board = chess.Board()
 
         if piece_offsets is None:
-            piece_offsets = [OFFSET_SQUARE_CENTER for _ in range(64)]
+            piece_offsets = [[OFFSET_SQUARE_CENTER for _ in range(8)] for _ in range(8)]
+        elif perspective == chess.BLACK:
+            piece_offsets = [
+                [flip_offset(offset) for offset in row] for row in piece_offsets
+            ]
 
         self.chess_board = chess_board
         self.piece_offsets = piece_offsets
-        self.perspective = physical_perspective
 
-    def piece_offset(self, square: chess.Square) -> PieceOffset:
-        """Returns the offset for a given square on the board.
+    def get_piece_offset(
+        self, square: chess.Square, perspective: chess.Color
+    ) -> PieceOffset:
+        """Returns the offset for a given square on the board, adjusted for perspective.
 
         Args:
             square (chess.Square): The square for which to retrieve the offset.
+            perspective (chess.Color): The color perspective (chess.WHITE or chess.BLACK)
+                from which the offset should be viewed.
 
         Returns:
-            SquareOffset: The offset of the piece on the specified square.
+            PieceOffset: The offset of the piece on the specified square, adjusted
+            according to the specified perspective.
         """
-        return self.piece_offsets[
-            chess.square_rank(square) * 8 + chess.square_file(square)
-        ]
 
-    def set_piece_offset(self, square: chess.Square, offset: PieceOffset):
-        """Sets the offset for a specific square on the board.
+        rank = chess.square_rank(square)
+        file = chess.square_file(square)
+
+        offset = self.piece_offsets[rank][file]
+        if perspective == chess.BLACK:
+            offset = flip_offset(offset)
+        return offset
+
+    def set_piece_offset(
+        self,
+        square: chess.Square,
+        perspective: chess.Color,
+        piece_offset: PieceOffset,
+    ):
+        """Sets the offset for a specific square on the board, considering perspective.
 
         Args:
             square (chess.Square): The square on which to set the offset.
-            offset (SquareOffset): The offset to apply to the specified square.
+            perspective (chess.Color): The perspective from which the offset is applied.
+            piece_offset (PieceOffset): The offset to apply to the specified square, relative to its center.
         """
-        self.piece_offsets[
-            chess.square_rank(square) * 8 + chess.square_file(square)
-        ] = offset
+
+        if perspective == chess.BLACK:
+            piece_offset = flip_offset(piece_offset)
+
+        rank = chess.square_rank(square)
+        file = chess.square_file(square)
+
+        self.piece_offsets[rank][file] = piece_offset
 
 
-class BoardDetection(ABC):
-    """Abstract base class for capturing the state of a physical board."""
+class BoardCapture(ABC):
+    """Abstract base class for capturing the state of a physical chessboard."""
 
     @abstractmethod
-    def capture_board(
-        self, physical_perspective: chess.Color = chess.WHITE
-    ) -> Optional[PhysicalBoard]:
-        """Captures the current state of the physical board from a specified color perspective.
-
-        If `physical_perspective` is chess.WHITE, the board is captured as-is. If `physical_perspective` is
-        chess.BLACK, the board is captured with a physical rotation along the Y-axis to align
-        with the black perspective.
+    def capture_board(self, human_perspective: chess.Color) -> Optional[PhysicalBoard]:
+        """Captures the current state of the physical board from the human player's perspective.
 
         Args:
-            physical_perspective (chess.Color): The color perspective (chess.WHITE or chess.BLACK) from
-                which to capture the board's state, determining orientation.
+            human_perspective (chess.Color): The color perspective (`chess.WHITE` or `chess.BLACK`)
+                from which to capture the board's state, determining its orientation and
+                corresponding piece offset adjustments.
 
         Returns:
             Optional[PhysicalBoard]: A `PhysicalBoard` instance representing the captured state
-                of the board, or None if the capture process fails.
+                of the board, or `None` if the capture process fails, such as due to a detection 
+                or alignment error.
         """
-        pass
 
 
-def boards_are_equal(board1: chess.Board, board2: chess.Board) -> bool:
+def are_boards_equal(board1: chess.Board, board2: chess.Board) -> bool:
     """Compares two chess boards to check if they are identical in piece positions.
 
     Args:
