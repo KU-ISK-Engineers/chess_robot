@@ -5,7 +5,7 @@ from ultralytics import YOLO
 import chess.engine
 
 from src.communication.tcp_robot import TCPRobotHand
-from src.detection.camera import CameraBoardDetection, default_camera_setup
+from src.detection.basler_camera import CameraBoardDetection, default_camera_setup
 
 from src.ui.gui import gui_main
 from src.core.game import Game
@@ -43,9 +43,8 @@ def main():
     model = YOLO("models/chess_200.pt")
 
     engine = chess.engine.SimpleEngine.popen_uci("stockfish")
-    camera = default_camera_setup()
 
-    detection = CameraBoardDetection(model, camera=camera)
+    detection = CameraBoardDetection(model)
 
     game = Game(detection, robot_hand, engine)
 
