@@ -1,84 +1,99 @@
-from typing import NamedTuple, Optional
+from typing import NamedTuple, Optional, List
 import cv2
 from ultralytics import YOLO
 import chess
-import chess.svg
 import numpy as np
 
-from src.core.board import PhysicalBoard, PieceOffset
-
-# Minimum piece detection confidence threshold
-THRESHOLD_CONFIDENCE = 0.5
-
-# Minimum distance percentage of the piece from the square center
-THRESHOLD_DISTANCE = 0.7
+from src.core.board import PhysicalBoard, PieceOffset, flip_offset
 
 
 class MappedSquare(NamedTuple):
-    """Represents a mapped square with a detected piece on a chessboard.
+    """Represents a detected piece mapped to a square on a chessboard.
 
     Attributes:
         chess_square (chess.Square): The identified square on the board.
-        offset (PieceOffset): The positional offset of the piece relative to the square center.
-        label (str): The detected label of the piece (e.g., 'white-pawn').
+        offset (PieceOffset): Positional offset of the piece relative to the square center.
+        label (str): Label of the detected piece (e.g., 'white-pawn').
         confidence (float): Confidence score of the piece detection.
     """
+
     chess_square: chess.Square
     offset: PieceOffset
     label: str
     confidence: float
 
 
-def detect_greyscale(image: np.ndarray, model: YOLO) -> tuple[list, list[str], list[float]]:
-    """Detects pieces on a grayscale image using the YOLO model.
+class DetectionResult(NamedTuple):
+    """Results from detecting chess pieces on a chessboard.
+
+    Attributes:
+        bounding_boxes (List[List[int]]): Bounding boxes for detected pieces in [x, y, width, height] format.
+        labels (List[str]): Labels for each detected piece (e.g., 'black-knight').
+        confidences (List[float]): Confidence scores for each detected piece.
+    """
+
+    bounding_boxes: List[List[int]]
+    labels: List[str]
+    confidences: List[float]
+
+
+def detect_grayscale(
+    grayscale_image: np.ndarray,
+    model: YOLO,
+    conf_threshold: float = 0.5,
+    iou_threshold: float = 0.45,
+) -> DetectionResult:
+    """Detects chess pieces in a grayscale image using a YOLO model.
+
+    Converts a grayscale image to a 3-channel format for YOLO processing, then detects chess pieces
+    based on confidence and IoU thresholds.
 
     Args:
-        image (np.ndarray): The grayscale image in which to detect chess pieces.
-        model (YOLO): The YOLO model used for detecting objects.
+        grayscale_image (np.ndarray): The grayscale image in which to detect chess pieces.
+        model (YOLO): The YOLO model for detecting objects.
+        conf_threshold (float, optional): Minimum confidence threshold for valid detections. Defaults to 0.5.
+        iou_threshold (float, optional): IoU threshold for non-maximum suppression. Defaults to 0.45.
 
     Returns:
-        tuple: Contains lists of bounding boxes, labels, and confidence scores.
-            - list: Bounding boxes of detected objects in [x, y, width, height] format.
-            - list[str]: Labels of detected objects (e.g., 'black-knight').
-            - list[float]: Confidence scores for each detected object.
+        DetectionResult: Contains bounding boxes, labels, and confidence scores for each detected piece.
+                         Empty lists are returned if no detections meet the thresholds.
     """
-    # Convert grayscale to 3-channel image
-    image = cv2.merge([image, image, image])
-
-    results = model(image)
-    bbox = []
-    label = []
-    conf = []
-
+    image = cv2.merge([grayscale_image] * 3)
+    results = model.predict(image, conf=conf_threshold, iou=iou_threshold)
     labels = model.names
-    
-    for result in results:
-        boxes = result.boxes.xyxy.cpu().numpy()
-        confs = result.boxes.conf.cpu().numpy()
-        class_ids = result.boxes.cls.cpu().numpy().astype(int)
 
-        for box, cf, class_id in zip(boxes, confs, class_ids):
-            if cf >= THRESHOLD_CONFIDENCE:
-                x1, y1, x2, y2 = map(int, box)
-                bbox.append([x1, y1, x2 - x1, y2 - y1])
-                label.append(labels[class_id])
-                conf.append(cf)
-    return bbox, label, conf
+    bbox, label, conf = [], [], []
+
+    if results and results[0].boxes:
+        for det in results[0].boxes:
+            x1, y1, x2, y2 = map(int, det.xyxy[:4])
+            bbox.append([x1, y1, x2 - x1, y2 - y1])
+            label.append(labels[int(det.cls)])
+            conf.append(float(det.conf))
+
+    return DetectionResult(bounding_boxes=bbox, labels=label, confidences=conf)
 
 
-def map_bboxes_to_squares(image: np.ndarray, bbox: list, label: list[str], confidence: list[float]) -> list[MappedSquare]:
-    """Maps bounding boxes to chessboard squares based on detected piece positions.
+def map_results_to_squares(
+    img_width: int,
+    img_height: int,
+    detection_result: DetectionResult,
+    max_piece_offset: float = 0.4,
+) -> List[MappedSquare]:
+    """Maps detection results to squares on an 8x8 chessboard.
+
+    Divides the chessboard image into an 8x8 grid and maps each detected piece to its nearest square.
+    Only includes pieces within a specified distance threshold from the square center.
 
     Args:
-        image (np.ndarray): The grayscale image of the chessboard.
-        bbox (list): List of bounding boxes in [x, y, width, height] format.
-        label (list[str]): List of detected piece labels.
-        confidence (list[float]): List of confidence scores for each piece detection.
+        img_width (int): Width of the chessboard image.
+        img_height (int): Height of the chessboard image.
+        detection_result (DetectionResult): Detected pieces with bounding boxes, labels, and confidence scores.
+        max_piece_offset (float, optional): Maximum distance from square center to include piece. Defaults to 0.4.
 
     Returns:
-        list[MappedSquare]: List of MappedSquare instances for each detected piece within acceptable distance from square centers.
+        List[MappedSquare]: List of MappedSquare instances for detected pieces within the acceptable distance.
     """
-    img_height, img_width = image.shape[:2]
     square_width = img_width // 8
     square_height = img_height // 8
     mapped_squares = []
@@ -86,15 +101,17 @@ def map_bboxes_to_squares(image: np.ndarray, bbox: list, label: list[str], confi
     max_center_dx = square_width // 2
     max_center_dy = square_height // 2
 
-    for box, lbl, cf in zip(bbox, label, confidence):
-        # Calculate center of detected bounding box
+    for box, lbl, cf in zip(
+        detection_result.bounding_boxes,
+        detection_result.labels,
+        detection_result.confidences,
+    ):
         x1, y1, x2, y2 = box[0], box[1], box[0] + box[2], box[1] + box[3]
         center_x = (x1 + x2) // 2
         center_y = (y1 + y2) // 2
 
         col = int(center_x // square_width)
         row = int(center_y // square_height)
-
         square = chess.square(col, row)
 
         center_col = col * square_width + square_width // 2
@@ -102,43 +119,49 @@ def map_bboxes_to_squares(image: np.ndarray, bbox: list, label: list[str], confi
 
         dx_offset = (center_x - center_col) / max_center_dx
         dy_offset = (center_y - center_row) / max_center_dy
-
         offset = PieceOffset(dx_offset, dy_offset)
 
-        # Only include pieces within the acceptable distance from square center
-        if abs(dx_offset) <= THRESHOLD_DISTANCE and abs(dy_offset) <= THRESHOLD_DISTANCE:
+        if abs(dx_offset) <= max_piece_offset and abs(dy_offset) <= max_piece_offset:
             mapped_squares.append(MappedSquare(square, offset, lbl, cf))
 
     return mapped_squares
 
 
-def map_squares_to_board(mapped_squares: list[MappedSquare], flip: bool = False) -> PhysicalBoard:
-    """Maps detected pieces to a PhysicalBoard instance.
+def map_squares_to_board(
+    mapped_squares: List[MappedSquare], perspective: chess.Color
+) -> PhysicalBoard:
+    """Maps detected pieces to a PhysicalBoard based on the specified perspective.
+
+    Converts a list of mapped squares to a PhysicalBoard, adjusting for perspective.
+    If `perspective` is `chess.BLACK`, the board is mirrored to position black at the bottom.
 
     Args:
-        mapped_squares (list[MappedSquare]): List of MappedSquare objects representing pieces.
-        flip (bool): Whether to flip the board for perspective (True if black perspective). Defaults to False.
+        mapped_squares (List[MappedSquare]): List of detected pieces mapped to squares.
+        perspective (chess.Color): Board perspective, either `chess.WHITE` or `chess.BLACK`.
 
     Returns:
-        PhysicalBoard: A PhysicalBoard instance with pieces set on detected squares.
+        PhysicalBoard: A PhysicalBoard instance with pieces set on mapped squares.
     """
     board = PhysicalBoard()
     board.chess_board.clear_board()
-    
+
     for mapped_square in mapped_squares:
-        if flip:
-            chess_square = 63 - mapped_square.chess_square
-            offset = PieceOffset(-mapped_square.offset.x, -mapped_square.offset.y)
-        else:
-            chess_square = mapped_square.chess_square
-            offset = mapped_square.offset
+        chess_square = (
+            chess.square_mirror(mapped_square.chess_square)
+            if perspective == chess.BLACK
+            else mapped_square.chess_square
+        )
+        offset = (
+            flip_offset(mapped_square.offset)
+            if perspective == chess.BLACK
+            else mapped_square.offset
+        )
 
         piece = label_to_piece(mapped_square.label)
-        
-        # Place the piece on the board
-        board.chess_board.set_piece_at(chess_square, piece)
-        board.set_piece_offset(chess_square, offset)
-        
+        if piece:
+            board.chess_board.set_piece_at(chess_square, piece)
+            board.set_piece_offset(chess_square, offset)
+
     return board
 
 
@@ -163,25 +186,39 @@ def label_to_piece(label: str) -> Optional[chess.Piece]:
         "white-knight": chess.Piece(chess.KNIGHT, chess.WHITE),
         "white-pawn": chess.Piece(chess.PAWN, chess.WHITE),
         "white-queen": chess.Piece(chess.QUEEN, chess.WHITE),
-        "white-rook": chess.Piece(chess.ROOK, chess.WHITE)
+        "white-rook": chess.Piece(chess.ROOK, chess.WHITE),
     }
 
     return piece_mapping.get(label)
 
 
-def greyscale_to_board(image: np.ndarray, model: YOLO, flip: bool = False) -> PhysicalBoard:
-    """Converts a grayscale image of a chessboard to a PhysicalBoard instance by detecting and mapping pieces.
+def grayscale_to_board(
+    grayscale_image: np.ndarray,
+    perspective: chess.Color,
+    model: YOLO,
+    conf_threshold: float = 0.5,
+    iou_threshold: float = 0.45,
+    max_piece_offset: float = 0.4,
+) -> PhysicalBoard:
+    """Detects and maps chess pieces from a grayscale board image to a PhysicalBoard.
+
+    Divides a top-down grayscale image of a chessboard into an 8x8 grid and maps detected pieces to their closest squares.
+    The `perspective` parameter sets the board orientation, with `chess.BLACK` positioning black at the image's bottom.
 
     Args:
-        image (np.ndarray): The grayscale image of the chessboard.
-        model (YOLO): The YOLO model used to detect pieces in the image.
-        flip (bool): Whether to flip the board orientation for black perspective. Defaults to False.
+        grayscale_image (np.ndarray): Grayscale chessboard image from a top-down view.
+        perspective (chess.Color): Board perspective, `chess.WHITE` or `chess.BLACK`, for correct piece placement.
+        model (YOLO): YOLO model used to detect pieces.
+        conf_threshold (float, optional): Confidence threshold for object detection. Defaults to 0.5.
+        iou_threshold (float, optional): IoU threshold for non-maximum suppression. Defaults to 0.45.
+        max_piece_offset (float, optional): Max distance offset from square center for mapping. Defaults to 0.4.
 
     Returns:
-        PhysicalBoard: The resulting PhysicalBoard with detected pieces mapped to squares.
+        PhysicalBoard: PhysicalBoard with mapped pieces and offsets.
     """
-    bbox, label, conf = detect_greyscale(image, model)
-    mapped_squares = map_bboxes_to_squares(image, bbox, label, conf)
-
-    board = map_squares_to_board(mapped_squares, flip)
+    res = detect_grayscale(grayscale_image, model, conf_threshold, iou_threshold)
+    mapped_squares = map_results_to_squares(
+        grayscale_image.shape[1], grayscale_image.shape[0], res, max_piece_offset
+    )
+    board = map_squares_to_board(mapped_squares, perspective)
     return board
