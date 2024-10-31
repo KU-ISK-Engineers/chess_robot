@@ -89,7 +89,7 @@ def preprocess_image(image: np.ndarray) -> np.ndarray:
     return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
 
-class CameraBoardDetection(BoardCapture):
+class CameraBoardCapture(BoardCapture):
     """
     Detects and captures the state of a chessboard from camera images using a YOLO model.
 
