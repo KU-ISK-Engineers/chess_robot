@@ -5,9 +5,9 @@ name: Testing
 
 on:
   push:
-    branches: [ "master", "rewrite" ]
+    branches: [ "master" ]
   pull_request:
-    branches: [ "master", "rewrite" ]
+    branches: [ "master" ]
 
 permissions:
   contents: read
