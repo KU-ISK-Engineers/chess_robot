@@ -1,5 +1,5 @@
 import unittest
-from src.movement import identify_move
+from src.core.moves import identify_move
 import chess
 from typing import Iterable
 from abc import ABC
