@@ -9,13 +9,13 @@ from src.ui.gui import gui_main
 from src.core.game import Game
 
 
-def setup_logging(debug: bool = False):
+def setup_logging():
     """Configures logging settings to output to both console and log file."""
     log_dir = "logs"
     log_file = os.path.join(log_dir, "simulated.log")
     os.makedirs(log_dir, exist_ok=True)
 
-    level = logging.DEBUG if debug else logging.INFO
+    level = logging.INFO
     logger = logging.getLogger()
     logger.setLevel(level)
 
@@ -47,7 +47,7 @@ def parse_arguments():
 
 def main():
     args = parse_arguments()
-    setup_logging(True)
+    setup_logging()
 
     try:
         # Initialize simulated hardware components
@@ -63,8 +63,12 @@ def main():
             logging.info("Simulated board capture initialized.")
 
             # Start the game with the simulated components
-            game = Game(board_capture=board_capture, piece_mover=piece_mover, engine=engine)
+            game = Game(
+                board_capture=board_capture, piece_mover=piece_mover, engine=engine
+            )
             logging.info("Game initialized, launching GUI...")
+            
+            board_capture.track_game(game)
 
             # Launch the GUI
             gui_main(game)

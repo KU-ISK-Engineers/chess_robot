@@ -215,10 +215,10 @@ def move_piece(
 
     # Update board offsets
     if from_square in chess.SQUARES:
-        board.set_piece_offset(from_square, color)
+        board.set_piece_offset(from_square, color, OFFSET_SQUARE_CENTER)
 
     if to_square in chess.SQUARES:
-        board.set_piece_offset(to_square, color)
+        board.set_piece_offset(to_square, color, OFFSET_SQUARE_CENTER)
 
     logger.info(f"Moved piece {move_str} success")
     return True

@@ -123,7 +123,7 @@ def background():
     logo_widgets.append(count_label)
 
 def svg_board():
-    board =game.chess_board()
+    board =game.get_chess_board()
 
     boardsvg = chess.svg.board(board, size=640)
     png_image = cairosvg.svg2png(bytestring=boardsvg)
@@ -147,12 +147,12 @@ def chess_engine_thread():
         
         valid_move = None
 
-        if game.player == ROBOT:
+        if game.current_player == ROBOT:
             valid_move = game.robot_makes_move()
             if valid_move:
                 svg_board()
-        elif game.player == HUMAN:
-            move, valid = game.player_made_move()
+        elif game.current_player == HUMAN:
+            move, valid = game.human_made_move()
             if move and valid:
                 svg_board()
 
@@ -227,9 +227,9 @@ def color_screen():
 
 def assign_color(selected_color):
     if selected_color=='white':
-        game.reset_board(perspective=chess.WHITE)
+        game.reset_state(human_color=chess.WHITE)
     elif selected_color=='black':
-        game.reset_board(perspective=chess.BLACK)                    
+        game.reset_state(human_color=chess.BLACK)                    
     game_screen()
 
 def show_game_result():
@@ -253,23 +253,13 @@ def show_game_result():
         if state == "resigned":
             image_path = "images/you_lose.png"
             update_robot_win_count()
-        else:
-            if game.board.perspective==chess.WHITE:
-                if state == "1-0":
-                    image_path = "images/you_won.png"
-                elif state == "0-1":
-                    image_path = "images/you_lose.png"
-                    update_robot_win_count()
-                elif state == "1/2-1/2":
-                    image_path = "images/draw.png"
-            elif game.board.perspective==chess.BLACK:
-                if state == "1-0":
-                    image_path = "images/you_lose.png"
-                    update_robot_win_count()
-                elif state == "0-1":
-                    image_path = "images/you_won.png"
-                elif state == "1/2-1/2":
-                    image_path = "images/draw.png"
+        elif state == "1-0":
+            image_path = "images/you_won.png"
+        elif state == "0-1":
+            image_path = "images/you_lose.png"
+            update_robot_win_count()
+        elif state == "1/2-1/2":
+            image_path = "images/draw.png"
 
         back = Image.open("images/back.png")
         back = back.resize((200, 100), Image.Resampling.LANCZOS)
@@ -291,12 +281,12 @@ def show_game_result():
 
 def update_turn():
     #who plays right now
-    if game.player == ROBOT:
+    if game.current_player == ROBOT:
         robot_label.config(image=robot_turn_active)
         robot_label.image = robot_turn_active
         user_label.config(image=your_turn_inactive)
         user_label.image = your_turn_inactive
-    elif game.player == HUMAN:
+    elif game.current_player == HUMAN:
         robot_label.config(image=robot_turn_inactive)
         robot_label.image = robot_turn_inactive
         user_label.config(image=your_turn_active)
@@ -336,7 +326,7 @@ def game_screen():
     resign = Image.open("images/resign.png")
     resign = resign.resize((200, 100), Image.Resampling.LANCZOS)
     resign = ImageTk.PhotoImage(resign)
-    resign_button = tk.Button(root, image=resign, command=game.resign_player, borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
+    resign_button = tk.Button(root, image=resign, command=game.resign_human, borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
     resign_button.image = resign
     resign_button.place(x=20, y=screen_height - resign.height() - 50)
 
