@@ -32,6 +32,7 @@ class SimulatedBoardCapture(BoardCapture):
         """
         self.engine = engine
         self.game = game
+        self.engine.configure({"Skill Level": 4})  
 
     def track_game(self, game: Game) -> None:
         """Associates a game instance with this board capture instance.
@@ -70,7 +71,7 @@ class SimulatedBoardCapture(BoardCapture):
         # Determine the action based on the current player's turn
         if self.game.current_player == HUMAN:
             result = self.engine.play(
-                chess_board, chess.engine.Limit(time=0.1)
+                chess_board, chess.engine.Limit(time=0.1, depth=4), 
             )
             chess_board.push(result.move)
             return PhysicalBoard(chess_board)

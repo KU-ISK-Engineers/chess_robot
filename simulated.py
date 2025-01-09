@@ -64,14 +64,14 @@ def main():
 
             # Start the game with the simulated components
             game = Game(
-                board_capture=board_capture, piece_mover=piece_mover, engine=engine
+                board_capture=board_capture, piece_mover=piece_mover, engine=engine, 
             )
             logging.info("Game initialized, launching GUI...")
             
             board_capture.track_game(game)
 
             # Launch the GUI
-            gui_main(game)
+            gui_main(game, splash=False)
 
     except chess.engine.EngineError as e:
         logging.exception("Failed to start the chess engine: %s", e)

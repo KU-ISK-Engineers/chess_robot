@@ -36,6 +36,7 @@ class Game:
         chess_board: Optional[chess.Board] = None,
         human_color: chess.Color = chess.WHITE,
         depth: int = 4,
+        skill_level: int = 0
     ) -> None:
         """Initializes the Game with board capture, movement, engine, player color, and depth.
 
@@ -60,10 +61,13 @@ class Game:
         self.piece_mover = piece_mover
         self.engine = engine
         self.depth = depth
+        self.skill_level = skill_level
         self.human_color = human_color
         self.physical_board = PhysicalBoard(chess_board)
         self.resigned = False
         self.piece_mover.reset()
+
+        self.set_skill_level(self.skill_level)
 
     def reset_state(
         self,
@@ -135,6 +139,11 @@ class Game:
             self.physical_board.piece_offsets = current_board.piece_offsets
 
         return done
+    
+    def set_skill_level(self, skill_level: int = 0) -> None:
+        self.skill_level = skill_level
+        self.engine.configure({"Skill Level": skill_level})  
+
 
     def set_depth(self, depth: int = 4) -> None:
         """Sets the depth for engine's move calculations and configures engine's skill level.
@@ -143,7 +152,7 @@ class Game:
             depth (int): The depth level for the chess engine calculations. Defaults to 4.
         """
         self.depth = depth
-        self.engine.configure({"Skill Level": depth})
+        
 
     def robot_makes_move(
         self, move: Optional[chess.Move] = None

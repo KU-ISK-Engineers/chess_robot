@@ -156,8 +156,20 @@ def chess_engine_thread():
             if move and valid:
                 svg_board()
 
-def select_level(level_value):
-    game.set_depth(level_value)
+def select_level(level):
+    if level == 'beginner':
+        game.set_depth(2)
+        game.set_skill_level(0)
+    elif level == 'intermediate':
+        game.set_depth(3)
+        game.set_skill_level(2)
+    elif level == 'advanced':
+        game.set_depth(4)
+        game.set_skill_level(4)
+    elif level == 'hard':
+        game.set_depth(6)
+        game.set_skill_level(20)
+
     color_screen()
       
 def level_screen():
@@ -182,19 +194,19 @@ def level_screen():
     level3_img = ImageTk.PhotoImage(level3_img)
     level4_img = ImageTk.PhotoImage(level4_img)
 
-    level1_button = tk.Button(frame, image=level1_img, command=lambda: select_level(1), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
+    level1_button = tk.Button(frame, image=level1_img, command=lambda: select_level('beginner'), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
     level1_button.image = level1_img
     level1_button.place(x=0, y=150)
 
-    level2_button = tk.Button(frame, image=level2_img, command=lambda: select_level(3), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
+    level2_button = tk.Button(frame, image=level2_img, command=lambda: select_level('intermediate'), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
     level2_button.image = level2_img
     level2_button.place(x=0, y=280)
 
-    level3_button = tk.Button(frame, image=level3_img, command=lambda: select_level(6), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
+    level3_button = tk.Button(frame, image=level3_img, command=lambda: select_level('advanced'), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
     level3_button.image = level3_img
     level3_button.place(x=0, y=400)
 
-    level4_button = tk.Button(frame, image=level4_img, command=lambda: select_level(10), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
+    level4_button = tk.Button(frame, image=level4_img, command=lambda: select_level('hard'), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
     level4_button.image = level4_img
     level4_button.place(x=0, y=520)
  
