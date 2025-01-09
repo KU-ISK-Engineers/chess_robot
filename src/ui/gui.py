@@ -146,13 +146,13 @@ def chess_engine_thread():
             return show_game_result()
         
         valid_move = None
-
         if game.current_player == ROBOT:
             valid_move = game.robot_makes_move()
             if valid_move:
                 svg_board()
         elif game.current_player == HUMAN:
             move, valid = game.human_made_move()
+            print(move, valid)
             if move and valid:
                 svg_board()
 

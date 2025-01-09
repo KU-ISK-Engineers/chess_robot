@@ -65,11 +65,15 @@ def detect_grayscale(
     bbox, label, conf = [], [], []
 
     if results and results[0].boxes:
-        for det in results[0].boxes:
-            x1, y1, x2, y2 = map(int, det.xyxy[:4])
+        boxes = results[0].boxes.xyxy.cpu().numpy()
+        confs = results[0].boxes.conf.cpu().numpy()
+        class_ids = results[0].boxes.cls.cpu().numpy().astype(int)
+
+        for box, cf, class_id in zip(boxes, confs, class_ids):
+            x1, y1, x2, y2 = map(int, box)
             bbox.append([x1, y1, x2 - x1, y2 - y1])
-            label.append(labels[int(det.cls)])
-            conf.append(float(det.conf))
+            label.append(labels[class_id])
+            conf.append(cf)
 
     return DetectionResult(bounding_boxes=bbox, labels=label, confidences=conf)
 
@@ -80,7 +84,8 @@ def map_results_to_squares(
     detection_result: DetectionResult,
     max_piece_offset: float = 0.4,
 ) -> List[MappedSquare]:
-    """Maps detection results to squares on an 8x8 chessboard.
+    """Maps detection results to squares on an 8x8 chessboard. 
+    Considers top-part image as first row.
 
     Divides the chessboard image into an 8x8 grid and maps each detected piece to its nearest square.
     Only includes pieces within a specified distance threshold from the square center.
@@ -142,6 +147,8 @@ def map_squares_to_board(
     Returns:
         PhysicalBoard: A PhysicalBoard instance with pieces set on mapped squares.
     """
+    print('Perspective:', 'White' if perspective == chess.WHITE else 'Black')
+
     board = PhysicalBoard()
     board.chess_board.clear_board()
 
@@ -160,7 +167,7 @@ def map_squares_to_board(
         piece = label_to_piece(mapped_square.label)
         if piece:
             board.chess_board.set_piece_at(chess_square, piece)
-            board.set_piece_offset(chess_square, offset)
+            board.set_piece_offset(chess_square, perspective, offset)
 
     return board
 

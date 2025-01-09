@@ -106,14 +106,14 @@ class CameraBoardCapture(BoardCapture):
         conf_threshold (float): Confidence threshold for detection.
         iou_threshold (float): IoU threshold for non-maximum suppression.
         max_piece_offset (float): Maximum offset distance from square center for valid piece mapping.
-        internal_perspective (bool): `HUMAN_PERSPECTIVE` if bottom of captured image is the player's side, `ROBOT_PERSPECTIVE` for the robot's side.
+        internal_perspective (bool): `HUMAN_PERSPECTIVE` if top of captured image is the player's side, `ROBOT_PERSPECTIVE` for the robot's side.
     """
 
     def __init__(
         self,
         model: YOLO,
         camera: Optional[pylon.InstantCamera] = None,
-        internal_perspective: int = HUMAN_PERSPECTIVE,
+        internal_perspective: int = ROBOT_PERSPECTIVE,
         timeout: int = 5000,
         capture_delay: float = 0.3,
         conf_threshold: float = 0.5,
@@ -170,7 +170,6 @@ class CameraBoardCapture(BoardCapture):
                 logger.warning("Failed to grab image from camera.")
                 continue
 
-            logger.info("Image captured from camera.")
             image = preprocess_image(grab_result.Array)
             cropped_image = self._crop_image(image)
 
@@ -195,7 +194,7 @@ class CameraBoardCapture(BoardCapture):
             Optional[PhysicalBoard]: Detected and verified chessboard state, or None if capture fails.
         """
         image = self.capture_image()
-        if not image:
+        if image is None:
             return None
 
         perspective = (
@@ -216,7 +215,7 @@ class CameraBoardCapture(BoardCapture):
         # Verification by second capture
         time.sleep(self.capture_delay)
         second_image = self.capture_image()
-        if second_image:
+        if second_image is not None:
             second_board = grayscale_to_board(
                 second_image,
                 perspective,
@@ -242,9 +241,10 @@ class CameraBoardCapture(BoardCapture):
             Optional[np.ndarray]: Cropped board image, or None if no area is detected.
         """
         area = detect_aruco_area(image)
-        if area:
+        if area is not None:
             self.area = area
-        if not self.area:
+        
+        if self.area is None:
             logger.warning("No ArUco area detected.")
             return None
         return crop_image_by_area(image, self.area)

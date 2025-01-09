@@ -8,7 +8,7 @@ from src.communication.tcp_robot import TCPRobotHand
 from src.detection.basler_camera import (
     CameraBoardCapture,
     default_camera_setup,
-    HUMAN_PERSPECTIVE,
+    ROBOT_PERSPECTIVE,
 )
 from src.ui.gui import gui_main
 from src.core.game import Game
@@ -79,11 +79,11 @@ def main():
         board_capture = CameraBoardCapture(
             model=model,
             camera=camera,
-            internal_perspective=HUMAN_PERSPECTIVE,
+            internal_perspective=ROBOT_PERSPECTIVE,
             capture_delay=0.3,
             conf_threshold=0.5,
             iou_threshold=0.45,
-            max_piece_offset=0.4,
+            max_piece_offset=0.8,
             timeout=5000,
         )
 

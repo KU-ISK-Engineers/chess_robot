@@ -206,8 +206,11 @@ class Game:
             Tuple[Optional[chess.Move], bool]: The detected move and a boolean indicating if it was legal.
         """
         new_board = self.board_capture.capture_board(self.human_color)
-        if not new_board:
+        if new_board is None:
             return None, False
+
+        print(self.physical_board.chess_board)
+        print(new_board.chess_board)
 
         move, legal = identify_move(
             self.physical_board.chess_board, new_board.chess_board

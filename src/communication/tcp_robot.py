@@ -78,7 +78,7 @@ class TCPRobotHand(PieceMover):
         offset_y = int(max(min(origin_offset.y * 100, 100), -100))
 
         # Square locations are relative to the hand
-        if color == chess.BLACK:
+        if color == chess.:
             from_square = chess.square_mirror(from_square)
             to_square = chess.square_mirror(to_square)
 
