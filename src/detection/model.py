@@ -4,7 +4,7 @@ from ultralytics import YOLO
 import chess
 import numpy as np
 
-from src.core.board import PhysicalBoard, PieceOffset, flip_offset
+from src.core.board import PhysicalBoard, PieceOffset
 
 
 class MappedSquare(NamedTuple):
@@ -85,10 +85,11 @@ def map_results_to_squares(
     max_piece_offset: float = 0.4,
 ) -> List[MappedSquare]:
     """Maps detection results to squares on an 8x8 chessboard. 
-    Considers top-part image as first row.
 
     Divides the chessboard image into an 8x8 grid and maps each detected piece to its nearest square.
     Only includes pieces within a specified distance threshold from the square center.
+
+    Note: Considers bottom-part of the image as first row.
 
     Args:
         img_width (int): Width of the chessboard image.
@@ -116,14 +117,14 @@ def map_results_to_squares(
         center_y = (y1 + y2) // 2
 
         col = int(center_x // square_width)
-        row = int(center_y // square_height)
+        row = 7 - int(center_y // square_height) # subtracted to make first row at the bottom of the image.
         square = chess.square(col, row)
 
         center_col = col * square_width + square_width // 2
         center_row = row * square_height + square_height // 2
 
         dx_offset = (center_x - center_col) / max_center_dx
-        dy_offset = (center_y - center_row) / max_center_dy
+        dy_offset = (center_row - center_y) / max_center_dy # inverted to make Y offset positive when it's above center.
         offset = PieceOffset(dx_offset, dy_offset)
 
         if abs(dx_offset) <= max_piece_offset and abs(dy_offset) <= max_piece_offset:
@@ -133,41 +134,31 @@ def map_results_to_squares(
 
 
 def map_squares_to_board(
-    mapped_squares: List[MappedSquare], perspective: chess.Color
+    mapped_squares: List[MappedSquare], bottom_color: chess.Color
 ) -> PhysicalBoard:
-    """Maps detected pieces to a PhysicalBoard based on the specified perspective.
-
-    Converts a list of mapped squares to a PhysicalBoard, adjusting for perspective.
-    If `perspective` is `chess.BLACK`, the board is mirrored to position black at the bottom.
+    """Maps detected pieces to a PhysicalBoard instance based on the pieces color at the bottom of the image.
 
     Args:
         mapped_squares (List[MappedSquare]): List of detected pieces mapped to squares.
-        perspective (chess.Color): Board perspective, either `chess.WHITE` or `chess.BLACK`.
+        bottom_color (chess.Color): Physical board color at the bottom used for creating virtual board, where white is always at the bottom.
 
     Returns:
         PhysicalBoard: A PhysicalBoard instance with pieces set on mapped squares.
     """
-    print('Perspective:', 'White' if perspective == chess.WHITE else 'Black')
-
     board = PhysicalBoard()
     board.chess_board.clear_board()
 
     for mapped_square in mapped_squares:
         chess_square = (
             chess.square_mirror(mapped_square.chess_square)
-            if perspective == chess.BLACK
+            if bottom_color == chess.BLACK
             else mapped_square.chess_square
-        )
-        offset = (
-            flip_offset(mapped_square.offset)
-            if perspective == chess.BLACK
-            else mapped_square.offset
         )
 
         piece = label_to_piece(mapped_square.label)
         if piece:
             board.chess_board.set_piece_at(chess_square, piece)
-            board.set_piece_offset(chess_square, perspective, offset)
+            board.set_piece_offset(chess_square, bottom_color, mapped_square.offset)
 
     return board
 
@@ -201,7 +192,7 @@ def label_to_piece(label: str) -> Optional[chess.Piece]:
 
 def grayscale_to_board(
     grayscale_image: np.ndarray,
-    perspective: chess.Color,
+    bottom_color: chess.Color,
     model: YOLO,
     conf_threshold: float = 0.5,
     iou_threshold: float = 0.45,
@@ -210,11 +201,11 @@ def grayscale_to_board(
     """Detects and maps chess pieces from a grayscale board image to a PhysicalBoard.
 
     Divides a top-down grayscale image of a chessboard into an 8x8 grid and maps detected pieces to their closest squares.
-    The `perspective` parameter sets the board orientation, with `chess.BLACK` positioning black at the image's bottom.
+    The `perspective` parameter sets the board orientation, with `chess.WHITE` positioning white at the image's bottom.
 
     Args:
         grayscale_image (np.ndarray): Grayscale chessboard image from a top-down view.
-        perspective (chess.Color): Board perspective, `chess.WHITE` or `chess.BLACK`, for correct piece placement.
+        bottom_color (chess.Color): Color at the bottom of the image.
         model (YOLO): YOLO model used to detect pieces.
         conf_threshold (float, optional): Confidence threshold for object detection. Defaults to 0.5.
         iou_threshold (float, optional): IoU threshold for non-maximum suppression. Defaults to 0.45.
@@ -227,5 +218,5 @@ def grayscale_to_board(
     mapped_squares = map_results_to_squares(
         grayscale_image.shape[1], grayscale_image.shape[0], res, max_piece_offset
     )
-    board = map_squares_to_board(mapped_squares, perspective)
+    board = map_squares_to_board(mapped_squares, bottom_color)
     return board

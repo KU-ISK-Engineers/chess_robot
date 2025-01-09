@@ -9,6 +9,7 @@ from src.core.moves import PieceMover, execute_move, identify_move, iter_reset_b
 
 logger = logging.getLogger(__name__)
 
+
 HUMAN = 0
 ROBOT = 1
 
@@ -36,7 +37,7 @@ class Game:
         chess_board: Optional[chess.Board] = None,
         human_color: chess.Color = chess.WHITE,
         depth: int = 4,
-        skill_level: int = 0
+        skill_level: int = 0,
     ) -> None:
         """Initializes the Game with board capture, movement, engine, player color, and depth.
 
@@ -126,7 +127,7 @@ class Game:
         done = False
         while not done:
             current_board = self.board_capture.capture_board(self.human_color)
-            if not current_board:
+            if current_board is None:
                 continue  # Keeps trying until a valid board capture
 
             moved, done = iter_reset_board(
@@ -135,24 +136,27 @@ class Game:
             if not moved:
                 break
 
-        if done and current_board:
+        if done and current_board is not None:
             self.physical_board.piece_offsets = current_board.piece_offsets
 
         return done
-    
-    def set_skill_level(self, skill_level: int = 0) -> None:
-        self.skill_level = skill_level
-        self.engine.configure({"Skill Level": skill_level})  
 
+    def set_skill_level(self, skill_level: int = 0) -> None:
+        """Configures engine's skill level.
+
+        Args:
+            skill_level (int): The depth level for the chess engine calculations. Defaults to 0.
+        """
+        self.skill_level = skill_level
+        self.engine.configure({"Skill Level": skill_level})
 
     def set_depth(self, depth: int = 4) -> None:
-        """Sets the depth for engine's move calculations and configures engine's skill level.
+        """Sets the depth for engine's move calculations
 
         Args:
             depth (int): The depth level for the chess engine calculations. Defaults to 4.
         """
         self.depth = depth
-        
 
     def robot_makes_move(
         self, move: Optional[chess.Move] = None
@@ -167,13 +171,13 @@ class Game:
         Returns:
             Optional[chess.Move]: The move made by the robot, or None if an error occurs.
         """
-        new_board = self.board_capture.capture_board(self.human_color)
-        if not new_board:
+        captured_board = self.board_capture.capture_board(self.human_color)
+        if captured_board is None:
             return None
 
-        if not are_boards_equal(self.physical_board.chess_board, new_board.chess_board):
+        if not are_boards_equal(self.physical_board.chess_board, captured_board.chess_board):
             logger.info(
-                "Detected board does not match previous legal board for robot to move; waiting for realignment"
+                "Captured board does not match previous legal board for robot to move; waiting for realignment"
             )
             return None
 
@@ -189,7 +193,7 @@ class Game:
             logger.error("Invalid robot move: %s", move and move.uci())
             return None
 
-        self.physical_board.piece_offsets = new_board.piece_offsets
+        self.physical_board.piece_offsets = captured_board.piece_offsets
         if not execute_move(
             self.piece_mover, self.physical_board, move, self.robot_color
         ):
@@ -205,15 +209,12 @@ class Game:
         Returns:
             Tuple[Optional[chess.Move], bool]: The detected move and a boolean indicating if it was legal.
         """
-        new_board = self.board_capture.capture_board(self.human_color)
-        if new_board is None:
+        captured_board = self.board_capture.capture_board(self.human_color)
+        if captured_board is None:
             return None, False
 
-        print(self.physical_board.chess_board)
-        print(new_board.chess_board)
-
         move, legal = identify_move(
-            self.physical_board.chess_board, new_board.chess_board
+            self.physical_board.chess_board, captured_board.chess_board
         )
         if move:
             logger.info(
@@ -221,7 +222,7 @@ class Game:
             )
             if legal:
                 self.physical_board.chess_board.push(move)
-                self.physical_board.piece_offsets = new_board.piece_offsets
+                self.physical_board.piece_offsets = captured_board.piece_offsets
                 self.current_player = ROBOT
 
         return move, legal
