@@ -2,7 +2,7 @@ from typing import Optional
 import chess
 import chess.engine
 from src.core.board import BoardCapture, PhysicalBoard
-from src.core.game import Game, HUMAN, ROBOT
+from src.core.game import Game, Player
 
 
 class SimulatedBoardCapture(BoardCapture):
@@ -69,14 +69,14 @@ class SimulatedBoardCapture(BoardCapture):
         chess_board = self.game.get_chess_board().copy()
 
         # Determine the action based on the current player's turn
-        if self.game.current_player == HUMAN:
+        if self.game.current_player == Player.HUMAN:
             result = self.engine.play(
                 chess_board, chess.engine.Limit(time=0.1, depth=4), 
             )
             chess_board.push(result.move)
             return PhysicalBoard(chess_board)
         
-        elif self.game.current_player == ROBOT:
+        elif self.game.current_player == Player.ROBOT:
             # Return the unchanged state of the board
             return PhysicalBoard(chess_board)
 
