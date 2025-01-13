@@ -117,14 +117,14 @@ def map_results_to_squares(
         center_y = (y1 + y2) // 2
 
         col = int(center_x // square_width)
-        row = 7 - int(center_y // square_height) # subtracted to make first row at the bottom of the image.
-        square = chess.square(col, row)
+        row = int(center_y // square_height) 
+        square = chess.square(col, 7 - row) # subtracted to make first row at the bottom of the image.
 
         center_col = col * square_width + square_width // 2
         center_row = row * square_height + square_height // 2
 
         dx_offset = (center_x - center_col) / max_center_dx
-        dy_offset = (center_row - center_y) / max_center_dy # inverted to make Y offset positive when it's above center.
+        dy_offset = (center_y - center_row) / -max_center_dy # inverted to make Y offset negative when it's below center.
         offset = PieceOffset(dx_offset, dy_offset)
 
         if abs(dx_offset) <= max_piece_offset and abs(dy_offset) <= max_piece_offset:
