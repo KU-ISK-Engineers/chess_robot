@@ -167,3 +167,20 @@ def are_boards_equal(board1: chess.Board, board2: chess.Board) -> bool:
         if board1.piece_at(square) != board2.piece_at(square):
             return False
     return True
+
+
+def flip_square(chess_square: chess.Square) -> chess.Square:
+    """Flips a chess square to its mirrored position on the board.
+
+    Args:
+        chess_square (chess.Square): The square to flip, represented as an integer.
+
+    Returns:
+        chess.Square: The mirrored square, where the rank and file are flipped to their opposite positions.
+    """
+    file = chess.square_file(chess_square)
+    rank = chess.square_rank(chess_square)
+
+    mirrored_rank = 7 - rank
+    mirrored_file = 7 - file
+    return chess.square(mirrored_file, mirrored_rank)

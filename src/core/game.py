@@ -92,7 +92,7 @@ class Game:
         if not chess_board:
             chess_board = chess.Board()
 
-        if not human_color:
+        if human_color is None:
             human_color = self.human_color
 
         if chess_board.turn == human_color:
