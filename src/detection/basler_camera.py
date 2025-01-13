@@ -41,8 +41,8 @@ def default_camera_setup() -> Optional[pylon.InstantCamera]:
         camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
         logger.info("Camera successfully initialized and started grabbing.")
         return camera
-    except Exception as e:
-        logger.error(f"Failed to initialize camera: {e}")
+    except Exception:
+        logger.exception(f"Failed to initialize camera!")
         return None
 
 
@@ -161,7 +161,7 @@ class CameraBoardCapture(BoardCapture):
             Optional[np.ndarray]: Cropped grayscale image, or None if capture fails.
         """
         if not self.camera.IsGrabbing():
-            logger.error("Camera is not grabbing images.")
+            logger.error("Camera is not grabbing images!")
             return None
 
         while True:
@@ -169,7 +169,7 @@ class CameraBoardCapture(BoardCapture):
                 self.timeout, pylon.TimeoutHandling_Return
             )
             if not grab_result.GrabSucceeded():
-                logger.warning("Failed to grab image from camera.")
+                logger.warning("Failed to grab image from camera!")
                 continue
 
             image = preprocess_image(grab_result.Array)
@@ -177,7 +177,7 @@ class CameraBoardCapture(BoardCapture):
 
             if cropped_image is not None:
                 return cropped_image
-            logger.warning("No board detected; retrying.")
+            logger.warning("No board detected with aruco stickers; retrying.")
             time.sleep(1)
 
     def capture_board(self, human_color: chess.Color) -> Optional[PhysicalBoard]:

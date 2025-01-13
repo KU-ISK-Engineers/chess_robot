@@ -150,6 +150,7 @@ class BoardCapture(ABC):
                 of the board, or `None` if the capture process fails, such as due to a detection 
                 or alignment error.
         """
+        pass
 
 
 def are_boards_equal(board1: chess.Board, board2: chess.Board) -> bool:

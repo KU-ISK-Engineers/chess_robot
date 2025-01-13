@@ -117,7 +117,8 @@ class TCPRobotHand(PieceMover):
 
         try:
             robot_socket.connect((self.ip, self.port))
-            logger.info(f"Connected to {self.ip}:{self.port}")
+            logger.info(f"Connected to TCP robot hand {self.ip}:{self.port}")
+            logger.info(f"Sending command {command}")
 
             # Send command to the robot server
             message = command.encode("utf-8")
@@ -132,7 +133,7 @@ class TCPRobotHand(PieceMover):
 
             return False
         except Exception:
-            logger.exception("Error issuing command:")
+            logger.error(f"Could not connect to TCP robot hand {self.ip}:{self.port}!")
             return False
         finally:
             robot_socket.close()

@@ -213,7 +213,7 @@ def move_piece(
     move_str = piece_move_str(from_square, to_square)
     res = mover.move_piece(from_square, to_square, color, origin_offset)
     if not res:
-        logger.error(f"Moved piece {move_str} failed")
+        logger.error(f"Failed moving piece {move_str}!")
         return False
 
     # Update board offsets
@@ -223,7 +223,7 @@ def move_piece(
     if to_square in chess.SQUARES:
         board.set_piece_offset(to_square, color, OFFSET_SQUARE_CENTER)
 
-    logger.info(f"Moved piece {move_str} success")
+    logger.info(f"Moved piece {move_str}")
     return True
 
 

@@ -123,7 +123,7 @@ class Game:
             bool: True if the physical board successfully matches the logical board
             in memory; False if synchronization fails.
         """
-        logger.info("Synchronizing physical board")
+        logger.info("Synchronizing physical board...")
 
         expected_board = self.physical_board.chess_board
         captured_board = None
@@ -142,6 +142,9 @@ class Game:
 
         if done and captured_board is not None:
             self.physical_board.piece_offsets = captured_board.piece_offsets
+            logger.info("Synchronizing board success")
+        else:
+            logger.error("Failed synchronizing board!")
 
         return done
 
@@ -191,7 +194,7 @@ class Game:
             )
             move = result.move
 
-        logger.info("Robot making move %s", move and move.uci())
+        logger.info("Robot is making move %s", move and move.uci())
 
         if not move or move not in self.physical_board.chess_board.legal_moves:
             logger.error("Invalid robot move: %s", move and move.uci())

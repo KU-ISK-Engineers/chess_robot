@@ -64,12 +64,9 @@ def main():
 
     try:
         robot_hand = TCPRobotHand(ip=args.ip, port=args.port, timeout=30)
-        logging.info("Robot hand connected at %s:%d", args.ip, args.port)
-
         model = YOLO(args.model_path)
-        logging.info("YOLO model loaded successfully from %s", args.model_path)
-
         camera = default_camera_setup()
+
         if not camera:
             logging.error(
                 "Camera setup failed. Ensure camera is connected and configured."
