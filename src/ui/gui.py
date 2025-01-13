@@ -123,18 +123,18 @@ def background():
     logo_widgets.append(count_label)
 
 def svg_board():
-    board =game.get_chess_board()
+    board = game.get_chess_board()
+    orientation = chess.WHITE if game.human_color == chess.WHITE else chess.BLACK
 
-    boardsvg = chess.svg.board(board, size=640)
+    boardsvg = chess.svg.board(board, size=640, orientation=orientation)
     png_image = cairosvg.svg2png(bytestring=boardsvg)
 
     image = Image.open(BytesIO(png_image))
     image = ImageTk.PhotoImage(image)
 
-    # Display the image on the screen
     label = tk.Label(root, image=image, borderwidth=0)
     label.image = image
-    label.place(x=550, y=200)
+    label.place(x=600, y=200)
 
 def chess_engine_thread():
     while True:
@@ -213,7 +213,7 @@ def level_screen():
 def color_screen():
     clear_screen()
     # black doesn't work yet
-    return assign_color("white")
+    #return assign_color("white")
 
     
     screen_width = root.winfo_screenwidth()
