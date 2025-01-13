@@ -137,6 +137,7 @@ def svg_board():
     label.place(x=550, y=200)
 
 def chess_engine_thread():
+    svg_board()
     while True:
         state = game.result()
         root.after(0, update_turn)
@@ -155,6 +156,7 @@ def chess_engine_thread():
             print(move, valid)
             if move and valid:
                 svg_board()
+
 
 def select_level(level):
     if level == 'beginner':
