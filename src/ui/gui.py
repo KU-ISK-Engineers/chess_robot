@@ -8,7 +8,7 @@ import chess
 import chess.svg
 import cairosvg
 
-from src.core.game import HUMAN, ROBOT
+from src.core.game import Player
 
 logger = logging.getLogger(__name__)
 
@@ -146,11 +146,11 @@ def chess_engine_thread():
             return show_game_result()
         
         valid_move = None
-        if game.current_player == ROBOT:
+        if game.current_player == Player.ROBOT:
             valid_move = game.robot_makes_move()
             if valid_move:
                 svg_board()
-        elif game.current_player == HUMAN:
+        elif game.current_player == Player.HUMAN:
             move, valid = game.human_made_move()
             print(move, valid)
             if move and valid:
@@ -293,12 +293,12 @@ def show_game_result():
 
 def update_turn():
     #who plays right now
-    if game.current_player == ROBOT:
+    if game.current_player == Player.ROBOT:
         robot_label.config(image=robot_turn_active)
         robot_label.image = robot_turn_active
         user_label.config(image=your_turn_inactive)
         user_label.image = your_turn_inactive
-    elif game.current_player == HUMAN:
+    elif game.current_player == Player.HUMAN:
         robot_label.config(image=robot_turn_inactive)
         robot_label.image = robot_turn_inactive
         user_label.config(image=your_turn_active)

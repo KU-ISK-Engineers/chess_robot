@@ -49,6 +49,8 @@ class PieceMover(ABC):
         origin_offset: PieceOffset,
     ) -> bool:
         """Moves a piece from one square to another on a physical board.
+        
+        Note: The piece is put in the center of the square.
 
         Args:
             from_square (chess.Square): The starting square of the piece to be moved.
@@ -79,7 +81,7 @@ def execute_move(
     Executes a specified chess move on a physical board, handling various types of moves
     such as standard moves, captures, castling, and en passant.
 
-    This function should be called before the move is saved on the `chess.Board` object,
+    Note: This function should be called before the move is saved on the `chess.Board` object,
     as it relies on the board's current state to determine the necessary piece movements.
 
     Args:
@@ -89,8 +91,7 @@ def execute_move(
             positions and offsets.
         move (chess.Move): The chess move to execute, represented as a `chess.Move` object
             containing the starting and destination squares.
-        color (chess.Color): The color of the piece being moved, where `True` indicates
-            white and `False` indicates black.
+        color (chess.Color): The color of the piece mover moving the piece (e.g robot hand color)
 
     Returns:
         bool: `True` if the move was successfully executed on the physical board;
@@ -185,7 +186,9 @@ def move_piece(
 ) -> bool:
     """
     Moves a piece from one square to another on the physical board, updating square offsets
-    as needed. This function directly handles physical piece movement and does not check
+    as needed. 
+    
+    Note: This function directly handles physical piece movement and does not check
     the move's legality.
 
     Args:
@@ -210,7 +213,7 @@ def move_piece(
     move_str = piece_move_str(from_square, to_square)
     res = mover.move_piece(from_square, to_square, color, origin_offset)
     if not res:
-        logger.error(f"Moved piece {move_str} failed")
+        logger.error(f"Failed moving piece {move_str}!")
         return False
 
     # Update board offsets
@@ -220,7 +223,7 @@ def move_piece(
     if to_square in chess.SQUARES:
         board.set_piece_offset(to_square, color, OFFSET_SQUARE_CENTER)
 
-    logger.info(f"Moved piece {move_str} success")
+    logger.info(f"Moved piece {move_str}")
     return True
 
 

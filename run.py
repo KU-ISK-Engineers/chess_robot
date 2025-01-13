@@ -8,7 +8,7 @@ from src.communication.tcp_robot import TCPRobotHand
 from src.detection.basler_camera import (
     CameraBoardCapture,
     default_camera_setup,
-    ROBOT_PERSPECTIVE,
+    Orientation
 )
 from src.ui.gui import gui_main
 from src.core.game import Game
@@ -64,12 +64,9 @@ def main():
 
     try:
         robot_hand = TCPRobotHand(ip=args.ip, port=args.port, timeout=30)
-        logging.info("Robot hand connected at %s:%d", args.ip, args.port)
-
         model = YOLO(args.model_path)
-        logging.info("YOLO model loaded successfully from %s", args.model_path)
-
         camera = default_camera_setup()
+
         if not camera:
             logging.error(
                 "Camera setup failed. Ensure camera is connected and configured."
@@ -79,7 +76,7 @@ def main():
         board_capture = CameraBoardCapture(
             model=model,
             camera=camera,
-            internal_perspective=ROBOT_PERSPECTIVE,
+            physical_orientation=Orientation.HUMAN_BOTTOM,
             capture_delay=0.3,
             conf_threshold=0.5,
             iou_threshold=0.45,

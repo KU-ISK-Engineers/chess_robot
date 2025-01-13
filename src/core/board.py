@@ -53,7 +53,7 @@ class PhysicalBoard:
     Attributes:
         chess_board (chess.Board): The current game board represented as a `chess.Board` instance.
         piece_offsets (List[List[PieceOffset]]): A 2D list (8x8) of `PieceOffset` objects, each representing the relative
-            offset of a piece on a given square. Offsets are from white perspective.
+            offset of a piece on a given square. Offsets are stored in white perspective.
     """
 
     def __init__(
@@ -137,7 +137,7 @@ class BoardCapture(ABC):
     """Abstract base class for capturing the state of a physical chessboard."""
 
     @abstractmethod
-    def capture_board(self, human_perspective: chess.Color) -> Optional[PhysicalBoard]:
+    def capture_board(self, human_color: chess.Color) -> Optional[PhysicalBoard]:
         """Captures the current state of the physical board from the human player's perspective.
 
         Args:
@@ -150,6 +150,7 @@ class BoardCapture(ABC):
                 of the board, or `None` if the capture process fails, such as due to a detection 
                 or alignment error.
         """
+        pass
 
 
 def are_boards_equal(board1: chess.Board, board2: chess.Board) -> bool:

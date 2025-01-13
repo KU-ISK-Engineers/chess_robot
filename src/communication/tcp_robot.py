@@ -3,14 +3,17 @@ import chess
 import logging
 from typing import Optional
 
-from src.core.board import PieceOffset
+from src.core.board import PieceOffset, flip_offset
 from src.core.moves import PieceMover
 
 logger = logging.getLogger(__name__)
 
 
 class TCPRobotHand(PieceMover):
-    def __init__(self, ip: str = "192.168.1.6", port: int = 6001, timeout: int = 30):
+    def __init__(self, 
+                 ip: str = "192.168.1.6", 
+                 port: int = 6001, 
+                 timeout: int = 30):
         """
         Initializes the TCPRobotHand with IP address, port, and timeout for socket connection.
 
@@ -41,6 +44,8 @@ class TCPRobotHand(PieceMover):
     ) -> bool:
         """
         Moves a piece from one square to another using the robot hand, adjusting for perspective.
+        
+        Note: First row is at the bottom of the robot hand's perspective.
 
         Args:
             from_square (int): The starting square (0-63) in integer notation.
@@ -63,6 +68,8 @@ class TCPRobotHand(PieceMover):
     ) -> str:
         """
         Forms a command string for moving a piece, accounting for offset and color perspective.
+        
+        Note: First row is at the bottom of the robot hand's perspective.
 
         Args:
             from_square (chess.Square): The starting square in 0-63 notation.
@@ -73,14 +80,15 @@ class TCPRobotHand(PieceMover):
         Returns:
             str: The formatted command string for the robot, including square positions and offsets.
         """
+        # Square locations are relative to the hand
+        if color == chess.BLACK:
+            from_square = chess.square_mirror(from_square)
+            to_square = chess.square_mirror(to_square)
+            origin_offset = flip_offset(origin_offset)
+
         # Convert offsets to integer percentages
         offset_x = int(max(min(origin_offset.x * 100, 100), -100))
         offset_y = int(max(min(origin_offset.y * 100, 100), -100))
-
-        # Square locations are relative to the hand
-        if color == chess.:
-            from_square = chess.square_mirror(from_square)
-            to_square = chess.square_mirror(to_square)
 
         # Form command parts as space-separated string
         command_parts = [from_square, offset_x, offset_y, to_square]
@@ -109,7 +117,8 @@ class TCPRobotHand(PieceMover):
 
         try:
             robot_socket.connect((self.ip, self.port))
-            logger.info(f"Connected to {self.ip}:{self.port}")
+            logger.info(f"Connected to TCP robot hand {self.ip}:{self.port}")
+            logger.info(f"Sending command {command}")
 
             # Send command to the robot server
             message = command.encode("utf-8")
@@ -124,7 +133,7 @@ class TCPRobotHand(PieceMover):
 
             return False
         except Exception:
-            logger.exception("Error issuing command:")
+            logger.error(f"Could not connect to TCP robot hand {self.ip}:{self.port}!")
             return False
         finally:
             robot_socket.close()

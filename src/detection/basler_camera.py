@@ -7,6 +7,7 @@ from pypylon import pylon
 import chess
 from ultralytics import YOLO
 import numpy as np
+from enum import Enum
 
 from src.core.board import PhysicalBoard, BoardCapture, are_boards_equal
 from src.detection.aruco import detect_aruco_area
@@ -14,8 +15,9 @@ from src.detection.model import grayscale_to_board
 
 logger = logging.getLogger(__name__)
 
-HUMAN_PERSPECTIVE = 1
-ROBOT_PERSPECTIVE = 0
+class Orientation(Enum):
+    HUMAN_BOTTOM = 0
+    ROBOT_BOTTOM = 1
 
 
 def default_camera_setup() -> Optional[pylon.InstantCamera]:
@@ -39,8 +41,8 @@ def default_camera_setup() -> Optional[pylon.InstantCamera]:
         camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
         logger.info("Camera successfully initialized and started grabbing.")
         return camera
-    except Exception as e:
-        logger.error(f"Failed to initialize camera: {e}")
+    except Exception:
+        logger.exception(f"Failed to initialize camera!")
         return None
 
 
@@ -94,7 +96,7 @@ class CameraBoardCapture(BoardCapture):
     Detects and captures the state of a chessboard from camera images using a YOLO model.
 
     Uses ArUco markers to detect the board area and YOLO to identify pieces.
-    Capturing assumes a stable perspective, where the player or robot remains in the same position.
+    Capturing board assumes a constant physical orientation of the camera, where the player or robot remains on the same side.
 
     Attributes:
         model (YOLO): YOLO model for piece detection.
@@ -106,14 +108,14 @@ class CameraBoardCapture(BoardCapture):
         conf_threshold (float): Confidence threshold for detection.
         iou_threshold (float): IoU threshold for non-maximum suppression.
         max_piece_offset (float): Maximum offset distance from square center for valid piece mapping.
-        internal_perspective (bool): `HUMAN_PERSPECTIVE` if top of captured image is the player's side, `ROBOT_PERSPECTIVE` for the robot's side.
+        physical_orientation (Orientation): `Orientation.HUMAN_BOTTOM` if bottom of the captured image is the player's side, `Orientation.ROBOT_BOTTOM` otherwise.
     """
 
     def __init__(
         self,
         model: YOLO,
         camera: Optional[pylon.InstantCamera] = None,
-        internal_perspective: int = ROBOT_PERSPECTIVE,
+        physical_orientation: Orientation = Orientation.HUMAN_BOTTOM,
         timeout: int = 5000,
         capture_delay: float = 0.3,
         conf_threshold: float = 0.5,
@@ -126,7 +128,7 @@ class CameraBoardCapture(BoardCapture):
         Args:
             model (YOLO): YOLO model for detecting chessboard elements.
             camera (Optional[pylon.InstantCamera]): Camera instance; defaults to None for automatic setup.
-            internal_perspective (bool): `HUMAN_PERSPECTIVE` for player's side at the bottom, `ROBOT_PERSPECTIVE` for robot side at the bottom.
+            physical_orientation (Orientation): `Orientation.HUMAN_BOTTOM` if bottom of the captured image is the player's side, `Orientation.ROBOT_BOTTOM` otherwise.
             timeout (int): Image capture timeout in milliseconds. Defaults to 5000.
             capture_delay (float): Delay between captures in seconds. Defaults to 0.3.
             conf_threshold (float): Confidence threshold for detection. Defaults to 0.5.
@@ -147,7 +149,7 @@ class CameraBoardCapture(BoardCapture):
         self.conf_threshold = conf_threshold
         self.iou_threshold = iou_threshold
         self.max_piece_offset = max_piece_offset
-        self.internal_perspective = internal_perspective
+        self.physical_orientation = physical_orientation
 
     def capture_image(self) -> Optional[np.ndarray]:
         """
@@ -159,7 +161,7 @@ class CameraBoardCapture(BoardCapture):
             Optional[np.ndarray]: Cropped grayscale image, or None if capture fails.
         """
         if not self.camera.IsGrabbing():
-            logger.error("Camera is not grabbing images.")
+            logger.error("Camera is not grabbing images!")
             return None
 
         while True:
@@ -167,7 +169,7 @@ class CameraBoardCapture(BoardCapture):
                 self.timeout, pylon.TimeoutHandling_Return
             )
             if not grab_result.GrabSucceeded():
-                logger.warning("Failed to grab image from camera.")
+                logger.warning("Failed to grab image from camera!")
                 continue
 
             image = preprocess_image(grab_result.Array)
@@ -175,12 +177,10 @@ class CameraBoardCapture(BoardCapture):
 
             if cropped_image is not None:
                 return cropped_image
-            logger.warning("No board detected; retrying.")
+            logger.warning("No board detected with aruco stickers; retrying.")
             time.sleep(1)
 
-    def capture_board(
-        self, human_perspective: chess.Color = chess.WHITE
-    ) -> Optional[PhysicalBoard]:
+    def capture_board(self, human_color: chess.Color) -> Optional[PhysicalBoard]:
         """
         Captures and verifies the state of the chessboard to ensure consistency.
 
@@ -193,29 +193,33 @@ class CameraBoardCapture(BoardCapture):
         Returns:
             Optional[PhysicalBoard]: Detected and verified chessboard state, or None if capture fails.
         """
-        image = self.capture_image()
-        if image is None:
+        first_image = self.capture_image()
+        if first_image is None:
             return None
 
         perspective = (
-            human_perspective
-            if self.internal_perspective == HUMAN_PERSPECTIVE
-            else not human_perspective
-        )
-
-        board = grayscale_to_board(
-            image,
-            perspective,
-            self.model,
-            self.conf_threshold,
-            self.iou_threshold,
-            self.max_piece_offset,
+            human_color
+            if self.physical_orientation == Orientation.HUMAN_BOTTOM
+            else not human_color
         )
 
         # Verification by second capture
         time.sleep(self.capture_delay)
+
         second_image = self.capture_image()
+        if second_image is None:
+            return None
+        
         if second_image is not None:
+            first_board = grayscale_to_board(
+                first_image,
+                perspective,
+                self.model,
+                self.conf_threshold,
+                self.iou_threshold,
+                self.max_piece_offset,
+            )
+
             second_board = grayscale_to_board(
                 second_image,
                 perspective,
@@ -224,8 +228,8 @@ class CameraBoardCapture(BoardCapture):
                 self.iou_threshold,
                 self.max_piece_offset,
             )
-            if are_boards_equal(board.chess_board, second_board.chess_board):
-                return board
+            if are_boards_equal(first_board.chess_board, second_board.chess_board):
+                return first_board
 
         logger.info("Inconsistent board states detected; capture failed.")
         return None
