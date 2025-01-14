@@ -178,6 +178,9 @@ def flip_square(chess_square: chess.Square) -> chess.Square:
     Returns:
         chess.Square: The mirrored square, where the rank and file are flipped to their opposite positions.
     """
+    if chess_square not in chess.SQUARES:
+        return chess_square
+
     file = chess.square_file(chess_square)
     rank = chess.square_rank(chess_square)
 
