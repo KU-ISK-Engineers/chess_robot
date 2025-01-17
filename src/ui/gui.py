@@ -14,13 +14,6 @@ logger = logging.getLogger(__name__)
 
 game_thread = None
 
-#class Gui():
-   # frame
-   #root
-   #thread
-   #screens
-
-
 def update_robot_win_count() -> None:
     win_count=read_robot_count_from_file()
     win_count += 1
@@ -52,163 +45,161 @@ def place_img(path: str, x: float, y: float, show_for: int = None, resize_height
     if show_for is not None:
         label.after(show_for, label.destroy)
 
+def place_button(path: str, x: float, y: float, frame: tk.Frame = None, resize_height: float = None, func: callable = None,  func_arg: str = None) -> None:
+    image = Image.open(path)
+    if resize_height is not None:
+        aspect_ratio = image.width / image.height
+        new_width = int(resize_height * aspect_ratio)
+        image = image.resize((new_width, resize_height), Image.Resampling.LANCZOS)
+    image = ImageTk.PhotoImage(image) 
+    placement = frame if frame is not None else root
+    if func is not None and func_arg is not None:
+        button = tk.Button(placement, image=image, command=lambda: func(func_arg), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
+    elif func is not None and func_arg is None:
+        button = tk.Button(placement, image=image, command=lambda: func(), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
+    button.image = image
+    button.place(x=x, y=y)
+
 #not used rn
-def show_check_msg() -> None:
-    frame = tk.Frame(root, bd=0, background="#FFFFFF")
-    frame.place(x=450, y=200, width=700, height=720)
-    place_img(path="images/check_msg.png", x=0, y=0, show_for=3000, frame=frame)
-    clear_screen(frame)
+def show_check_msg(frame: tk.Frame) -> None:
+    place_img(path="images/check_msg.png", x=100, y=100, show_for=3000, frame=frame)
 
-def show_wrong_move_msg() -> None:
-    frame = tk.Frame(root, bd=0, background="#FFFFFF")
-    frame.place(x=450, y=200, width=500, height=500)
-    place_img(path="images/wrong_move.png", x=100, y=0, show_for=2000, frame=frame)
-    clear_screen(frame)
+def show_wrong_move_msg(frame: tk.Frame) -> None:
+    place_img(path="images/wrong_move.png", x=100, y=100, show_for=2000, frame=frame, resize_height=200)
     
-def clear_screen(frame:tk.Frame = None) -> None:
-    for widget in frame.winfo_children():
-        widget.destroy()
-    if frame is not None:
-        frame.destroy()
+def clear_screen() -> None:
+    for widget in root.winfo_children():
+        if isinstance(widget, tk.Frame) :
+            widget.destroy()
 
-def background():
+def background() ->None:
+    global count_label
     target_height = 100
 
-    place_img(path="images/fondas.png", x=100, y=0, resize_height=target_height)
-    place_img(path="images/ku.png", x=300, y=0, resize_height=target_height)
-    place_img(path="images/conexus.png", x=500, y=0, resize_height=target_height)
-
+    place_img(path="images/fondas.png", x=100, y=20, resize_height=target_height)
+    place_img(path="images/ku.png", x=500, y=20, resize_height=target_height)
+    place_img(path="images/conexus.png", x=900, y=20, resize_height=target_height)
     place_img(path="images/killcount.png", x=50, y=150, resize_height=150)
 
     count_label = tk.Label(root, text=str(read_robot_count_from_file()), bg="#FFFFFF", font=("Arial", 30), fg="black")
-    count_label.place(x=30, y=230)
+    count_label.place(x=180, y=230)
 
-def svg_board():
+def svg_board(frame: tk.Frame) -> None:
+    
     board = game.get_chess_board()
     orientation = chess.WHITE if game.human_color == chess.WHITE else chess.BLACK
 
     boardsvg = chess.svg.board(board, size=640, orientation=orientation)
     png_image = cairosvg.svg2png(bytestring=boardsvg)
 
-    place_img(path=BytesIO(png_image), x=600, y=200)
+    place_img(path=BytesIO(png_image), x=0, y=0, frame=frame)
 
-def chess_engine_thread():
-    svg_board()
+def chess_engine_thread() -> None:
+    frame = tk.Frame(root, bd=0, background="#FFFFFF")
+    frame.place(x=450, y=200, width=640, height=640)
+    svg_board(frame)
     while True:
         state = game.result()
         root.after(0, update_turn)
 
-        if state != "*" or state == "resigned":
-            print('Stopping game')
+        if state  == "resigned":
+            logger.info("Player resigned, stopping game")
+            update_robot_win_count()
+            color_screen()
+        elif state != "*":
+            logger.info("Game over")
             return show_game_result()
         
         valid_move = None
         if game.current_player == Player.ROBOT:
             valid_move = game.robot_makes_move()
             if valid_move:
-                svg_board()
+                svg_board(frame)
         elif game.current_player == Player.HUMAN:
             move, valid = game.human_made_move()
-            print(move, valid)
+            logger.info(move, valid)
             if move and valid:
-                svg_board()
+                svg_board(frame)
             elif move and not valid:
-                show_wrong_move_msg()
+                show_wrong_move_msg(frame=frame)
+    
 
-
-def select_level(level):
+def select_level(level: str) -> None:
     if level == 'beginner':
-        game.set_depth(2)
+        game.set_depth(1)
         game.set_skill_level(0)
     elif level == 'intermediate':
-        game.set_depth(3)
+        game.set_depth(2)
         game.set_skill_level(2)
     elif level == 'advanced':
-        game.set_depth(4)
+        game.set_depth(3)
         game.set_skill_level(4)
     elif level == 'hard':
         game.set_depth(6)
         game.set_skill_level(20)
-
-    color_screen()
-
-
-def place_button(path: str, x: float, y: float, frame: tk.Frame = None, resize_height: float = None, func: callable = None,  func_arg: str = None) -> None:
-    image = Image.open(path)
-    image = ImageTk.PhotoImage(image)
-    if resize_height is not None:
-        aspect_ratio = image.width / image.height
-        new_width = int(resize_height * aspect_ratio)
-        image = image.resize((new_width, resize_height), Image.Resampling.LANCZOS)
-    placement = frame if frame is not None else root
-    button = tk.Button(placement, image=image, command=lambda: func(func_arg), borderwidth=0, highlightthickness=0, relief='flat', bg="#FFFFFF")
-    button.image = image
-    button.place(x=x, y=y)
+    game_screen()
 
 
-def level_screen():
+def level_screen() -> None:
+    clear_screen()
+    count_label.config(text=str(read_robot_count_from_file()))
     
     frame = tk.Frame(root, bd=0, background="#FFFFFF")
     frame.place(x=450, y=200, width=700, height=720)
     
-    place_img(path="images/choose_level.png", x=0, y=0)
+    place_img(path="images/choose_level.png", x=0, y=0, frame=frame)
 
     place_button(path="images/beginner.png", x=0, y=150, frame=frame, func=select_level, func_arg="beginner")
     place_button(path="images/intermediate.png", x=0, y=280, frame=frame, func=select_level, func_arg="intermediate")
     place_button(path="images/advanced.png", x=0, y=400, frame=frame, func=select_level, func_arg="advanced")
     place_button(path="images/unbeatable.png", x=0, y=520, frame=frame, func=select_level, func_arg="hard")
 
-    clear_screen(frame)
-
 def color_screen() -> None:
+    clear_screen()
+
     frame = tk.Frame(root, bd=0, background="#FFFFFF")
-    frame.place(x=450, y=200, width=700, height=720)
+    frame.place(x=550, y=200, width=700, height=720)
 
     place_img(path="images/choose_color.png", x=0, y=0, frame=frame)
 
-    place_button(path="images/white.png", x=0, y=300, func=assign_color, func_arg="white")
-    place_button(path="images/black.png", x=0, y=500, func=assign_color, func_arg="black")
+    place_button(path="images/white.png", frame=frame, x=0, y=200, func=assign_color, func_arg="white")
+    place_button(path="images/black.png", frame=frame, x=0, y=400, func=assign_color, func_arg="black")
 
-    clear_screen(frame)
 
 def assign_color(selected_color: str) -> None:
     if selected_color=='white':
         game.reset_state(human_color=chess.WHITE)
     elif selected_color=='black':
         game.reset_state(human_color=chess.BLACK)                    
-    game_screen()
+    level_screen()
 
-def show_game_result():
-
+def show_game_result()-> None:
+    clear_screen()
     frame = tk.Frame(root, bd=0, background="#FFFFFF")
-    frame.place(x=450, y=200, width=700, height=720)
+    frame.place(x=400, y=200, width=750, height=720)
 
-    place_img(path="images/game_over.png", x=0, y=0, show_for=2000)
+    place_img(path="images/game_over.png", frame=frame, x=40, y=40, show_for=2000)
 
-    def win_lose_message_path() -> str:
-        image_path = None
-        state = game.result()
+    path=win_lose_message_path()
 
-        # TODO: Move human/robot win logic in game
+    if path:
+        frame.after(2000, place_img(path=path, frame=frame, x=0, y=0))
+    place_button(path="images/back.png", frame=frame, x=frame.winfo_width()//2-150, y=600, resize_height=80, func=color_screen)
 
-        if state == "resigned":
-            image_path = "images/you_lose.png"
-            update_robot_win_count()
-        elif state == "1-0":
-            image_path = "images/you_won.png"
-        elif state == "0-1":
-            image_path = "images/you_lose.png"
-            update_robot_win_count()
-        elif state == "1/2-1/2":
-            image_path = "images/draw.png"
-        return image_path
+def win_lose_message_path() -> str:
+    image_path = None
+    state = game.result()
 
-    if win_lose_message_path():
-        place_img(path=win_lose_message_path(), x=0, y=0, frame=frame)
-    place_button(path="images/back.png", frame=frame, x=frame.winfo_width()//2, y=frame.winfo_height()-50, resize_height=100, func=level_screen)
-    clear_screen(frame)
+    if state == "1-0":
+        image_path = "images/you_won.png"
+    elif state == "0-1":
+        image_path = "images/you_lose.png"
+        update_robot_win_count()
+    elif state == "1/2-1/2":
+        image_path = "images/draw.png"
+    return image_path
 
-def update_turn():
+def update_turn() -> None:
     if game.current_player == Player.ROBOT:
         robot_label.config(image=robot_turn_active)
         robot_label.image = robot_turn_active
@@ -220,12 +211,13 @@ def update_turn():
         user_label.config(image=your_turn_active)
         user_label.image = your_turn_active
 
-def game_screen():
+def game_screen() -> None:
+
+    clear_screen()
     frame = tk.Frame(root, bd=0, background="#FFFFFF")
-    frame.place(x=20, y=200, width=300, height=500)
+    frame.place(x=20, y=350, width=400, height=500)
 
-    place_img(path="images/turns.png", frame=frame, x=0, y=300)
-
+    place_img(path="images/turns.png", frame=frame, x=0, y=0)
 
     global robot_label, user_label, robot_turn_active,your_turn_inactive, robot_turn_inactive,your_turn_active
     
@@ -240,16 +232,15 @@ def game_screen():
     your_turn_inactive = ImageTk.PhotoImage(your_turn_inactive)
 
 
-    robot_label = tk.Label(root, image=robot_turn_inactive, borderwidth=0, bg="#FFFFFF")
+    robot_label = tk.Label(frame, image=robot_turn_inactive, borderwidth=0, bg="#FFFFFF")
     robot_label.image = robot_turn_inactive
-    robot_label.place(x=x_turns, y=y_turns + 2 * turns.height() + 10)
+    robot_label.place(x=0, y=100)
 
-    user_label = tk.Label(root, image=your_turn_inactive, borderwidth=0, bg="#FFFFFF")
+    user_label = tk.Label(frame, image=your_turn_inactive, borderwidth=0, bg="#FFFFFF")
     user_label.image = your_turn_inactive
-    user_label.place(x=x_turns, y=y_turns + 3 * turns.height() + 10)
+    user_label.place(x=0, y=200)
 
-    place_button(path="images/resign.png", frame=frame, x=20, y=frame.winfo_width()-50, func=game.resign_human)
-
+    place_button(path="images/resign.png", frame=frame, x=20, y=400, func=game.resign_human, resize_height=100)
 
 
     global game_thread
@@ -260,8 +251,6 @@ def gui_main(game_obj, fullscreen = True, splash = True):
     global root, game
     game=game_obj
 
-    read_robot_count_from_file()
-
     root = tk.Tk()
     root.configure(bg="#FFFFFF")
 
@@ -270,6 +259,6 @@ def gui_main(game_obj, fullscreen = True, splash = True):
         root.attributes('-type', 'splash')
 
     background()
-    level_screen()
+    color_screen()
 
     root.mainloop()
