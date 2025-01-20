@@ -32,6 +32,9 @@ def setup_logging(debug: bool = False):
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
+    
+    if not debug:
+        logging.getLogger("ultralytics").setLevel(logging.CRITICAL)
 
 
 def parse_arguments():
