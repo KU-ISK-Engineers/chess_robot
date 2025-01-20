@@ -13,14 +13,14 @@ class TCPRobotHand(PieceMover):
     def __init__(self, 
                  ip: str = "192.168.1.6", 
                  port: int = 6001, 
-                 timeout: int = 30):
+                 timeout: int = 60):
         """
         Initializes the TCPRobotHand with IP address, port, and timeout for socket connection.
 
         Args:
-            ip (str): The IP address of the robot's server. Defaults to "192.168.1.6".
-            port (int): The port number for communication with the robot's server. Defaults to 6001.
-            timeout (int): The timeout for socket communication in seconds. Defaults to 30 seconds.
+            ip (str): The IP address of the robot's server. 
+            port (int): The port number for communication with the robot's server.
+            timeout (int): The timeout for socket communication in seconds. 
         """
         self.ip = ip
         self.port = port
@@ -85,9 +85,6 @@ class TCPRobotHand(PieceMover):
         if color == chess.BLACK:
             from_square = flip_square(from_square)
             to_square = flip_square(to_square)
-
-            # TODO: Unsure if offsets work
-            origin_offset = flip_offset(origin_offset)
 
         # Convert offsets to integer percentages
         offset_x = int(max(min(origin_offset.x * 100, 100), -100))

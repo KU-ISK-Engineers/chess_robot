@@ -45,7 +45,7 @@ def parse_arguments():
     parser.add_argument(
         "--model_path",
         type=str,
-        default="training/models/200ep_chess_yolov10b.pt",
+        default="training/models/yolo8_200.pt",
         help="Path to YOLO model",
     )
     parser.add_argument(
@@ -80,7 +80,7 @@ def main():
             capture_delay=0.3,
             conf_threshold=0.5,
             iou_threshold=0.45,
-            max_piece_offset=0.8,
+            max_piece_offset=0.99,
             timeout=5000,
         )
 

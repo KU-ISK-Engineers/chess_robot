@@ -170,7 +170,6 @@ def chess_engine_thread() -> None:
                 svg_board(frame)
         elif game.current_player == Player.HUMAN:
             move, valid = game.human_made_move()
-            logger.info(move, valid)
             if move and valid:
                 svg_board(frame)
             elif move and not valid:
