@@ -4,7 +4,7 @@ from ultralytics import YOLO
 import chess
 import numpy as np
 
-from src.core.board import PhysicalBoard, PieceOffset
+from src.core.board import PhysicalBoard, PieceOffset, flip_square
 
 
 class MappedSquare(NamedTuple):
@@ -150,7 +150,7 @@ def map_squares_to_board(
 
     for mapped_square in mapped_squares:
         chess_square = (
-            chess.square_mirror(mapped_square.chess_square)
+            flip_square(mapped_square.chess_square)
             if bottom_color == chess.BLACK
             else mapped_square.chess_square
         )

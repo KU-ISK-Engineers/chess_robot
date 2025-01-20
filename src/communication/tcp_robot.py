@@ -3,7 +3,7 @@ import chess
 import logging
 from typing import Optional
 
-from src.core.board import PieceOffset, flip_offset
+from src.core.board import PieceOffset, flip_offset, flip_square
 from src.core.moves import PieceMover
 
 logger = logging.getLogger(__name__)
@@ -83,8 +83,10 @@ class TCPRobotHand(PieceMover):
         # Last row is next to the robot hand
         # TODO: Make this opposite
         if color == chess.WHITE:
-            from_square = chess.square_mirror(from_square)
-            to_square = chess.square_mirror(to_square)
+            from_square = flip_square(from_square)
+            to_square = flip_square(to_square)
+
+            # TODO: Unsure if offsets work
             origin_offset = flip_offset(origin_offset)
 
         # Convert offsets to integer percentages

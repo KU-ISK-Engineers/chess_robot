@@ -92,7 +92,7 @@ class Game:
         if not chess_board:
             chess_board = chess.Board()
 
-        if not human_color:
+        if human_color is None:
             human_color = self.human_color
 
         if chess_board.turn == human_color:
@@ -194,6 +194,7 @@ class Game:
             )
             move = result.move
 
+        logger.info(f'Current board: {self.physical_board.chess_board.fen()}')
         logger.info("Robot is making move %s", move and move.uci())
 
         if not move or move not in self.physical_board.chess_board.legal_moves:

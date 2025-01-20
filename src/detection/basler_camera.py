@@ -180,6 +180,7 @@ class CameraBoardCapture(BoardCapture):
             logger.warning("No board detected with aruco stickers; retrying.")
             time.sleep(1)
 
+
     def capture_board(self, human_color: chess.Color) -> Optional[PhysicalBoard]:
         """
         Captures and verifies the state of the chessboard to ensure consistency.
@@ -193,46 +194,44 @@ class CameraBoardCapture(BoardCapture):
         Returns:
             Optional[PhysicalBoard]: Detected and verified chessboard state, or None if capture fails.
         """
-        first_image = self.capture_image()
-        if first_image is None:
-            return None
-
         perspective = (
             human_color
             if self.physical_orientation == Orientation.HUMAN_BOTTOM
             else not human_color
         )
 
-        # Verification by second capture
-        time.sleep(self.capture_delay)
+        first_image = self.capture_image()
+        if first_image is None:
+            return None
+
+        first_board = grayscale_to_board(
+            first_image,
+            perspective,
+            self.model,
+            self.conf_threshold,
+            self.iou_threshold,
+            self.max_piece_offset,
+        )
 
         second_image = self.capture_image()
         if second_image is None:
             return None
         
-        if second_image is not None:
-            first_board = grayscale_to_board(
-                first_image,
-                perspective,
-                self.model,
-                self.conf_threshold,
-                self.iou_threshold,
-                self.max_piece_offset,
-            )
+        second_board = grayscale_to_board(
+            second_image,
+            perspective,
+            self.model,
+            self.conf_threshold,
+            self.iou_threshold,
+            self.max_piece_offset,
+        )
 
-            second_board = grayscale_to_board(
-                second_image,
-                perspective,
-                self.model,
-                self.conf_threshold,
-                self.iou_threshold,
-                self.max_piece_offset,
-            )
-            if are_boards_equal(first_board.chess_board, second_board.chess_board):
-                return first_board
+        if not are_boards_equal(first_board.chess_board, second_board.chess_board):
+            logger.info("Inconsistent board states detected; capture failed.")
+            return None
 
-        logger.info("Inconsistent board states detected; capture failed.")
-        return None
+        return first_board
+
 
     def _crop_image(self, image: np.ndarray) -> Optional[np.ndarray]:
         """
