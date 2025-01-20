@@ -3,7 +3,7 @@ import chess
 import logging
 from typing import Optional
 
-from src.core.board import PieceOffset, flip_offset, flip_square
+from src.core.board import PieceOffset, flip_square
 from src.core.moves import PieceMover
 
 logger = logging.getLogger(__name__)
@@ -112,29 +112,22 @@ class TCPRobotHand(PieceMover):
         if timeout is None:
             timeout = self.timeout
 
-        # Initialize socket connection to robot
-        robot_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        robot_socket.settimeout(timeout)
-
         try:
-            robot_socket.connect((self.ip, self.port))
-            logger.info(f"Connected to TCP robot hand {self.ip}:{self.port}")
-            logger.info(f"Sending command {command}")
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as robot_socket:
+                robot_socket.settimeout(timeout)
+                robot_socket.connect((self.ip, self.port))
+                logger.info(f"Connected to TCP robot hand {self.ip}:{self.port}")
+                logger.info(f"Sending TCP command: {command}")
 
-            # Send command to the robot server
-            message = command.encode("utf-8")
-            robot_socket.sendall(message)
+                robot_socket.sendall(command.encode("utf-8"))
 
-            # Receive and decode the response from the robot server
-            response = robot_socket.recv(1024)
-            if response:
-                decoded_response = response.decode("utf-8").strip()
-                if decoded_response == "success":
-                    return True
-
+                response = robot_socket.recv(1024)
+                if response:
+                    decoded_response = response.decode("utf-8").strip()
+                    logger.info(f"Received TCP response: {decoded_response}")
+                    if decoded_response == "success":
+                        return True
             return False
-        except Exception:
-            logger.error(f"Could not connect to TCP robot hand {self.ip}:{self.port}!")
+        except Exception as e:
+            logger.error(f"Could not connect to TCP robot hand {self.ip}:{self.port}! Error: {e}")
             return False
-        finally:
-            robot_socket.close()

@@ -42,7 +42,7 @@ def default_camera_setup() -> Optional[pylon.InstantCamera]:
         logger.info("Camera successfully initialized and started grabbing.")
         return camera
     except Exception:
-        logger.exception(f"Failed to initialize camera!")
+        logger.exception("Failed to initialize camera!")
         return None
 
 
