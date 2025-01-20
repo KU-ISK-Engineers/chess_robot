@@ -9,18 +9,12 @@ from src.core.board import OFFSET_SQUARE_CENTER, PhysicalBoard, PieceOffset
 logger = logging.getLogger(__name__)
 
 OFF_BOARD_SQUARES = {
-    (chess.ROOK, chess.WHITE): -1,
-    (chess.BISHOP, chess.WHITE): -2,
-    (chess.KNIGHT, chess.WHITE): -3,
-    (chess.QUEEN, chess.WHITE): -4,
-    (chess.KING, chess.WHITE): -5,
-    (chess.PAWN, chess.WHITE): -6,
-    (chess.ROOK, chess.BLACK): -7,
-    (chess.BISHOP, chess.BLACK): -8,
-    (chess.KNIGHT, chess.BLACK): -9,
-    (chess.QUEEN, chess.BLACK): -10,
-    (chess.KING, chess.BLACK): -11,
-    (chess.PAWN, chess.BLACK): -12,
+    chess.ROOK: -1,
+    chess.KNIGHT: -2,
+    chess.BISHOP: -3,
+    chess.QUEEN: -4,
+    chess.KING: -5,
+    chess.PAWN: -6,
 }
 
 
@@ -34,7 +28,9 @@ def off_board_square(piece_type: chess.PieceType, piece_color: chess.Color) -> i
     Returns:
         int: The coordinate representing the off-board location for the given piece.
     """
-    return OFF_BOARD_SQUARES[(piece_type, piece_color)]
+
+    # Only one color pieces are supported currently due to promotion
+    return OFF_BOARD_SQUARES[piece_type]
 
 
 class PieceMover(ABC):

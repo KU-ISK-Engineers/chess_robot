@@ -33,7 +33,7 @@ class TCPRobotHand(PieceMover):
         Returns:
             bool: True if the reset command succeeded and was acknowledged by the robot; False otherwise.
         """
-        return self.issue_command("99 99 99 99")
+        return self.issue_command("reset")
 
     def move_piece(
         self,
@@ -56,10 +56,10 @@ class TCPRobotHand(PieceMover):
         Returns:
             bool: True if the move command succeeded and was acknowledged by the robot; False otherwise.
         """
-        command = self.form_command(from_square, to_square, color, origin_offset)
+        command = self.form_move_command(from_square, to_square, color, origin_offset)
         return self.issue_command(command)
 
-    def form_command(
+    def form_move_command(
         self,
         from_square: chess.Square,
         to_square: chess.Square,
@@ -82,7 +82,7 @@ class TCPRobotHand(PieceMover):
         """
         # Last row is next to the robot hand
         # TODO: Make this opposite
-        if color == chess.WHITE:
+        if color == chess.BLACK:
             from_square = flip_square(from_square)
             to_square = flip_square(to_square)
 
@@ -95,7 +95,8 @@ class TCPRobotHand(PieceMover):
 
         # Form command parts as space-separated string
         command_parts = [from_square, offset_x, offset_y, to_square]
-        command_string = " ".join(map(str, command_parts))
+        move_string = " ".join(map(str, command_parts))
+        command_string = "move " + move_string
 
         return command_string
 
