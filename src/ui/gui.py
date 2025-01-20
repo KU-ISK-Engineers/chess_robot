@@ -8,11 +8,11 @@ import chess
 import chess.svg
 import cairosvg
 
-from src.core.game import Player
+from src.core.game import Player, Game
 
 logger = logging.getLogger(__name__)
 
-game_thread = None
+game_thread: threading.Thread|None = None
 
 def update_robot_win_count() -> None:
     win_count=read_robot_count_from_file()
@@ -105,7 +105,7 @@ def chess_engine_thread() -> None:
         if state  == "resigned":
             logger.info("Player resigned, stopping game")
             update_robot_win_count()
-            color_screen()
+            level_screen()
         elif state != "*":
             logger.info("Game over")
             return show_game_result()
@@ -137,7 +137,7 @@ def select_level(level: str) -> None:
     elif level == 'hard':
         game.set_depth(6)
         game.set_skill_level(20)
-    game_screen()
+    color_screen()
 
 
 def level_screen() -> None:
@@ -171,7 +171,7 @@ def assign_color(selected_color: str) -> None:
         game.reset_state(human_color=chess.WHITE)
     elif selected_color=='black':
         game.reset_state(human_color=chess.BLACK)                    
-    level_screen()
+    game_screen()
 
 def show_game_result()-> None:
     clear_screen()
@@ -184,7 +184,7 @@ def show_game_result()-> None:
 
     if path:
         frame.after(2000, place_img(path=path, frame=frame, x=0, y=0))
-    place_button(path="images/back.png", frame=frame, x=frame.winfo_width()//2-150, y=600, resize_height=80, func=color_screen)
+    place_button(path="images/back.png", frame=frame, x=frame.winfo_width()//2-150, y=600, resize_height=80, func=level_screen)
 
 def win_lose_message_path() -> str:
     image_path = None
@@ -247,7 +247,7 @@ def game_screen() -> None:
     game_thread = threading.Thread(target=chess_engine_thread)
     game_thread.start()
 
-def gui_main(game_obj, fullscreen = True, splash = True):
+def gui_main(game_obj: Game, fullscreen: bool = True, splash: bool = True):
     global root, game
     game=game_obj
 
@@ -259,6 +259,6 @@ def gui_main(game_obj, fullscreen = True, splash = True):
         root.attributes('-type', 'splash')
 
     background()
-    color_screen()
+    level_screen()
 
     root.mainloop()
