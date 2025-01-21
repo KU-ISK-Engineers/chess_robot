@@ -122,10 +122,13 @@ def background() -> None:
     global count_label
     target_height = 100
 
-    place_img(path="images/fondas.png", x=100, y=20, resize_height=target_height)
-    place_img(path="images/ku.png", x=500, y=20, resize_height=target_height)
-    place_img(path="images/conexus.png", x=900, y=20, resize_height=target_height)
-    place_img(path="images/killcount.png", x=50, y=150, resize_height=150)
+    screen_width = root.winfo_width()
+    screen_height = root.winfo_height()
+
+    place_img(path="images/fondas.png", x=50, y=20, resize_height = target_height)
+    place_img(path="images/ku.png", x=screen_width/2.5, y=20, resize_height = target_height)
+    place_img(path="images/conexus.png", x=screen_width/5*4, y=20, resize_height = target_height)
+    place_img(path="images/killcount.png", x=50, y=screen_height/6, resize_height = 150)
 
     count_label = tk.Label(
         root,
@@ -134,7 +137,7 @@ def background() -> None:
         font=("Arial", 30),
         fg="black",
     )
-    count_label.place(x=180, y=230)
+    count_label.place(x=180, y=screen_height/4)
 
 
 def svg_board(frame: tk.Frame) -> None:
@@ -148,8 +151,12 @@ def svg_board(frame: tk.Frame) -> None:
 
 
 def chess_engine_thread() -> None:
+
+    screen_width=root.winfo_width()
+    screen_height=root.winfo_height()
+
     frame = tk.Frame(root, bd=0, background="#FFFFFF")
-    frame.place(x=450, y=200, width=640, height=640)
+    frame.place(x=screen_width/3, y=screen_height/4, width=640, height=640)
     svg_board(frame)
     while True:
         state = game.result()
@@ -197,8 +204,11 @@ def level_screen() -> None:
     clear_screen()
     count_label.config(text=str(read_robot_count_from_file()))
 
+    screen_width=root.winfo_width()
+    screen_height=root.winfo_height()
+
     frame = tk.Frame(root, bd=0, background="#FFFFFF")
-    frame.place(x=450, y=200, width=700, height=720)
+    frame.place(x=screen_width/3, y=screen_height/4, width=screen_width/2, height=screen_height/4*3)
 
     place_img(path="images/choose_level.png", x=0, y=0, frame=frame)
 
@@ -239,8 +249,11 @@ def level_screen() -> None:
 def color_screen() -> None:
     clear_screen()
 
+    screen_width=root.winfo_width()
+    screen_height=root.winfo_height()
+
     frame = tk.Frame(root, bd=0, background="#FFFFFF")
-    frame.place(x=550, y=200, width=700, height=720)
+    frame.place(x=screen_width/2.5, y=screen_height/4, width=screen_width/2, height=screen_height/4*3)
 
     place_img(path="images/choose_color.png", x=0, y=0, frame=frame)
 
@@ -272,8 +285,12 @@ def assign_color(selected_color: str) -> None:
 
 def show_game_result() -> None:
     clear_screen()
+
+    screen_width=root.winfo_width()
+    screen_height=root.winfo_height()
+
     frame = tk.Frame(root, bd=0, background="#FFFFFF")
-    frame.place(x=400, y=200, width=750, height=720)
+    frame.place(x=screen_width/4, y=screen_height/4, width=750, height=720)
 
     place_img(path="images/game_over.png", frame=frame, x=40, y=40, show_for=2000)
 
@@ -320,8 +337,12 @@ def update_turn() -> None:
 
 def game_screen() -> None:
     clear_screen()
+
+    screen_height = root.winfo_height()
+    screen_width = root.winfo_height()
+
     frame = tk.Frame(root, bd=0, background="#FFFFFF")
-    frame.place(x=20, y=350, width=400, height=500)
+    frame.place(x=20, y=screen_height/3, width=screen_width/2.5, height=screen_height/2)
 
     place_img(path="images/turns.png", frame=frame, x=0, y=0)
 
@@ -377,6 +398,8 @@ def gui_main(game_obj: Game, fullscreen: bool = True, splash: bool = True):
     root.attributes("-fullscreen", fullscreen)
     if splash:
         root.attributes("-type", "splash")
+
+    root.update_idletasks()
 
     background()
     level_screen()
