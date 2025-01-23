@@ -1,7 +1,6 @@
 import socket
 import chess
 import logging
-from typing import Optional
 
 from src.core.board import PieceOffset, flip_square
 from src.core.moves import PieceMover
@@ -18,13 +17,30 @@ class TCPRobotHand(PieceMover):
         Initializes the TCPRobotHand with IP address, port, and timeout for socket connection.
 
         Args:
-            ip (str): The IP address of the robot's server. 
-            port (int): The port number for communication with the robot's server.
+            ip (str): The IP address of the robot hand. 
+            port (int): The port number for communication with the robot hand.
             timeout (int): The timeout for socket communication in seconds. 
         """
         self.ip = ip
         self.port = port
         self.timeout = timeout
+
+        self.robot_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.robot_socket.settimeout(timeout)
+        self._connect()
+        
+    def _connect(self) -> bool:
+        try:
+            self.robot_socket.connect((self.ip, self.port))  
+            logger.info(f"Connected to TCP robot hand {self.ip}:{self.port}")
+            return True
+        except socket.error as e:
+            logger.error(f"Could not connect to TCP robot hand {self.ip}:{self.port}! Error: {e}")
+            return False
+        
+    def __del__(self):
+        self.robot_socket.close()
+        
 
     def reset(self) -> bool:
         """
@@ -97,37 +113,33 @@ class TCPRobotHand(PieceMover):
 
         return command_string
 
-    def issue_command(self, command: str, timeout: Optional[int] = None) -> bool:
+    def issue_command(self, command: str) -> bool:
         """
         Sends a command to the robot hand and waits for a response, confirming command success or failure.
 
         Args:
             command (str): The command string to send to the robot.
-            timeout (Optional[int]): Timeout in seconds for the socket connection. Defaults to the instance timeout.
 
         Returns:
             bool: True if the command was successfully acknowledged by the robot server with a "success" response;
                   False otherwise.
         """
-        if timeout is None:
-            timeout = self.timeout
-
+        logger.info(f"Sending TCP command: {command}")
+        
         try:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as robot_socket:
-                robot_socket.settimeout(timeout)
-                robot_socket.connect((self.ip, self.port))
-                logger.info(f"Connected to TCP robot hand {self.ip}:{self.port}")
-                logger.info(f"Sending TCP command: {command}")
-
-                robot_socket.sendall(command.encode("utf-8"))
-
-                response = robot_socket.recv(1024)
-                if response:
-                    decoded_response = response.decode("utf-8").strip()
-                    logger.info(f"Received TCP response: {decoded_response}")
-                    if decoded_response == "success":
-                        return True
-            return False
-        except Exception as e:
+            self.robot_socket.sendall(command.encode("utf-8"))
+            response = self.robot_socket.recv(1024)
+            if response:
+                decoded_response = response.decode("utf-8").strip()
+                logger.info(f"Received TCP response: {decoded_response}")
+                return decoded_response == "success"
+            else:
+                logger.warning("Received no TCP response")
+        except ConnectionResetError as e:
+            logger.error(f"Lost connection to TCP robot hand {self.ip}:{self.port}, attempting reconnect! Error: {e}")
+            if self._connect():
+                return self.issue_command(command)
+        except socket.error as e:
             logger.error(f"Could not connect to TCP robot hand {self.ip}:{self.port}! Error: {e}")
-            return False
+        
+        return False
