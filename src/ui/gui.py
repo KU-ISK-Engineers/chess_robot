@@ -399,7 +399,7 @@ def gui_main(game_obj: Game, fullscreen: bool = True, splash: bool = True):
     if splash:
         root.attributes("-type", "splash")
 
-    root.update_idletasks()
+    #root.update_idletasks()
 
     background()
     level_screen()
