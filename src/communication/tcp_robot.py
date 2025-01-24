@@ -135,8 +135,8 @@ class TCPRobotHand(PieceMover):
                 return decoded_response == "success"
             else:
                 logger.warning("Received no TCP response")
-        except ConnectionResetError as e:
-            logger.error(f"Lost connection to TCP robot hand {self.ip}:{self.port}, attempting reconnect! Error: {e}")
+        except (ConnectionResetError, BrokenPipeError) as e:
+            logger.error(f"No connection to TCP robot hand {self.ip}:{self.port}, attempting reconnect! Error: {e}")
             if self._connect():
                 return self.issue_command(command)
         except socket.error as e:
