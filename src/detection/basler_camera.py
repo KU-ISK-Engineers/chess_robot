@@ -15,6 +15,7 @@ from src.detection.model import grayscale_to_board
 
 logger = logging.getLogger(__name__)
 
+
 class Orientation(Enum):
     HUMAN_BOTTOM = 0
     ROBOT_BOTTOM = 1
@@ -114,13 +115,14 @@ class CameraBoardCapture(BoardCapture):
     def __init__(
         self,
         model: YOLO,
-        camera: Optional[pylon.InstantCamera] = None,
+        camera: pylon.InstantCamera,
         physical_orientation: Orientation = Orientation.HUMAN_BOTTOM,
         timeout: int = 5000,
         capture_delay: float = 0.3,
         conf_threshold: float = 0.5,
         iou_threshold: float = 0.45,
         max_piece_offset: float = 0.4,
+        visualize_board: bool = False,
     ) -> None:
         """
         Initializes CameraBoardDetection with model, camera, and settings.
@@ -139,8 +141,6 @@ class CameraBoardCapture(BoardCapture):
             RuntimeError: If camera initialization fails.
         """
         self.camera = camera or default_camera_setup()
-        if self.camera is None:
-            raise RuntimeError("Camera initialization failed.")
         self.timeout = timeout
         self.capture_delay = capture_delay
         self.model = model
@@ -150,6 +150,7 @@ class CameraBoardCapture(BoardCapture):
         self.iou_threshold = iou_threshold
         self.max_piece_offset = max_piece_offset
         self.physical_orientation = physical_orientation
+        self.visualize_board = visualize_board
 
     def capture_image(self) -> Optional[np.ndarray]:
         """
@@ -179,7 +180,6 @@ class CameraBoardCapture(BoardCapture):
                 return cropped_image
             logger.warning("No board detected with aruco stickers; retrying.")
             time.sleep(1)
-
 
     def capture_board(self, human_color: chess.Color) -> Optional[PhysicalBoard]:
         """
@@ -211,12 +211,13 @@ class CameraBoardCapture(BoardCapture):
             self.conf_threshold,
             self.iou_threshold,
             self.max_piece_offset,
+            visualize=self.visualize_board,
         )
 
         second_image = self.capture_image()
         if second_image is None:
             return None
-        
+
         second_board = grayscale_to_board(
             second_image,
             perspective,
@@ -224,6 +225,7 @@ class CameraBoardCapture(BoardCapture):
             self.conf_threshold,
             self.iou_threshold,
             self.max_piece_offset,
+            visualize=self.visualize_board,
         )
 
         if not are_boards_equal(first_board.chess_board, second_board.chess_board):
@@ -231,7 +233,6 @@ class CameraBoardCapture(BoardCapture):
             return None
 
         return first_board
-
 
     def _crop_image(self, image: np.ndarray) -> Optional[np.ndarray]:
         """
@@ -246,7 +247,7 @@ class CameraBoardCapture(BoardCapture):
         area = detect_aruco_area(image)
         if area is not None:
             self.area = area
-        
+
         if self.area is None:
             logger.warning("No ArUco area detected.")
             return None

@@ -8,7 +8,7 @@ from src.communication.tcp_robot import TCPRobotHand
 from src.detection.basler_camera import (
     CameraBoardCapture,
     default_camera_setup,
-    Orientation
+    Orientation,
 )
 from src.ui.gui import gui_main
 from src.core.game import Game
@@ -32,7 +32,7 @@ def setup_logging(debug: bool = False):
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
-    
+
     if not debug:
         logging.getLogger("ultralytics").setLevel(logging.CRITICAL)
 
@@ -85,6 +85,7 @@ def main():
             iou_threshold=0.45,
             max_piece_offset=0.99,
             timeout=5000,
+            visualize_board=args.debug,
         )
 
         with chess.engine.SimpleEngine.popen_uci(args.engine_path) as engine:

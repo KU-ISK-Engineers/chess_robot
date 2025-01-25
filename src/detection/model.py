@@ -13,13 +13,13 @@ class MappedSquare(NamedTuple):
     Attributes:
         chess_square (chess.Square): The identified square on the board.
         offset (PieceOffset): Positional offset of the piece relative to the square center.
-        label (str): Label of the detected piece (e.g., 'white-pawn').
+        piece (chess.Piece): Detected piece.
         confidence (float): Confidence score of the piece detection.
     """
 
     chess_square: chess.Square
     offset: PieceOffset
-    label: str
+    piece: chess.Piece
     confidence: float
 
 
@@ -84,7 +84,7 @@ def map_results_to_squares(
     detection_result: DetectionResult,
     max_piece_offset: float = 0.4,
 ) -> List[MappedSquare]:
-    """Maps detection results to squares on an 8x8 chessboard. 
+    """Maps detection results to squares on an 8x8 chessboard.
 
     Divides the chessboard image into an 8x8 grid and maps each detected piece to its nearest square.
     Only includes pieces within a specified distance threshold from the square center.
@@ -100,12 +100,12 @@ def map_results_to_squares(
     Returns:
         List[MappedSquare]: List of MappedSquare instances for detected pieces within the acceptable distance.
     """
-    square_width = img_width // 8
-    square_height = img_height // 8
-    mapped_squares = []
+    square_width = img_width / 8
+    square_height = img_height / 8
+    mapped_squares: list[MappedSquare] = []
 
-    max_center_dx = square_width // 2
-    max_center_dy = square_height // 2
+    max_center_dx = square_width / 2
+    max_center_dy = square_height / 2
 
     for box, lbl, cf in zip(
         detection_result.bounding_boxes,
@@ -113,22 +113,31 @@ def map_results_to_squares(
         detection_result.confidences,
     ):
         x1, y1, x2, y2 = box[0], box[1], box[0] + box[2], box[1] + box[3]
-        center_x = (x1 + x2) // 2
-        center_y = (y1 + y2) // 2
+        center_x = (x1 + x2) / 2
+        center_y = (y1 + y2) / 2
 
         col = int(center_x // square_width)
-        row = int(center_y // square_height) 
-        square = chess.square(col, 7 - row) # subtracted to make first row at the bottom of the image.
+        row = int(center_y // square_height)
+        square = chess.square(
+            col, 7 - row
+        )  # subtracted to make first row at the bottom of the image.
 
-        center_col = col * square_width + square_width // 2
-        center_row = row * square_height + square_height // 2
+        center_col = col * square_width + square_width / 2
+        center_row = row * square_height + square_height / 2
 
         dx_offset = (center_x - center_col) / max_center_dx
-        dy_offset = (center_y - center_row) / -max_center_dy # inverted to make Y offset negative when it's below center.
+        dy_offset = (
+            center_y - center_row
+        ) / -max_center_dy  # inverted to make Y offset negative when it's below center.
         offset = PieceOffset(dx_offset, dy_offset)
 
-        if abs(dx_offset) <= max_piece_offset and abs(dy_offset) <= max_piece_offset:
-            mapped_squares.append(MappedSquare(square, offset, lbl, cf))
+        piece = label_to_piece(lbl)
+        if (
+            piece is not None
+            and abs(dx_offset) <= max_piece_offset
+            and abs(dy_offset) <= max_piece_offset
+        ):
+            mapped_squares.append(MappedSquare(square, offset, piece, cf))
 
     return mapped_squares
 
@@ -155,10 +164,8 @@ def map_squares_to_board(
             else mapped_square.chess_square
         )
 
-        piece = label_to_piece(mapped_square.label)
-        if piece:
-            board.chess_board.set_piece_at(chess_square, piece)
-            board.set_piece_offset(chess_square, bottom_color, mapped_square.offset)
+        board.chess_board.set_piece_at(chess_square, mapped_square.piece)
+        board.set_piece_offset(chess_square, bottom_color, mapped_square.offset)
 
     return board
 
@@ -190,6 +197,117 @@ def label_to_piece(label: str) -> Optional[chess.Piece]:
     return piece_mapping.get(label)
 
 
+def draw_bounding_boxes(
+    chessboard_image: np.ndarray, detections: DetectionResult
+) -> np.ndarray:
+    """
+    Draws bounding boxes for detected chess pieces.
+
+    Args:
+        chessboard_image (np.ndarray): The chessboard image.
+        detections (DetectionResult): Object detection results.
+
+    Returns:
+        np.ndarray: Annotated chessboard image with bounding boxes.
+    """
+    annotated_image = chessboard_image.copy()
+
+    for box in detections.bounding_boxes:
+        x, y, width, height = box
+        x2, y2 = x + width, y + height
+
+        cv2.rectangle(annotated_image, (x, y), (x2, y2), (0, 255, 0), 2)
+
+    return annotated_image
+
+
+def draw_square_bounds(
+    chessboard_image: np.ndarray,
+) -> np.ndarray:
+    """
+    Draws grid lines to outline squares on the chessboard image.
+
+    Args:
+        chessboard_image (np.ndarray): The chessboard image.
+
+    Returns:
+        np.ndarray: Annotated image with grid lines drawn.
+    """
+    annotated_image = chessboard_image.copy()
+
+    square_width = annotated_image.shape[1] / 8
+    square_height = annotated_image.shape[0] / 8
+
+    for col in range(1, 8):  # Start at 1 to avoid drawing over the left edge
+        x = round(col * square_width)
+        cv2.line(annotated_image, (x, 0), (x, annotated_image.shape[0]), (0, 255, 0), 1)
+
+    for row in range(1, 8):  # Start at 1 to avoid drawing over the top edge
+        y = round(row * square_height)
+        cv2.line(annotated_image, (0, y), (annotated_image.shape[1], y), (0, 255, 0), 1)
+
+    return annotated_image
+
+
+def draw_mapped_squares(
+    chessboard_image: np.ndarray, mapped_squares: list[MappedSquare]
+) -> np.ndarray:
+    """
+    Visualizes mapped squares on the chessboard image.
+
+    Args:
+        image (np.ndarray): The chessboard image.
+        mapped_squares (list[MappedSquare]): Mapped squares with piece information.
+
+    Returns:
+        np.ndarray: Annotated chessboard image.
+    """
+    annotated_image = chessboard_image.copy()
+
+    square_width = annotated_image.shape[1] / 8
+    square_height = annotated_image.shape[0] / 8
+
+    for mapped_square in mapped_squares:
+        chess_square = mapped_square.chess_square
+        offset = mapped_square.offset
+        conf = mapped_square.confidence
+        piece_symbol = mapped_square.piece.symbol()
+
+        col = chess.square_file(chess_square)
+        row = 7 - chess.square_rank(chess_square)  # Convert to top-left origin
+
+        square_center_x = round(col * square_width + square_width / 2)
+        square_center_y = round(row * square_height + square_height / 2)
+
+        piece_x = round(square_center_x + offset.x * square_width / 2)
+        piece_y = round(square_center_y - offset.y * square_height / 2)
+
+        cv2.circle(annotated_image, (piece_x, piece_y), 5, (255, 0, 0), -1)
+
+        cv2.putText(
+            annotated_image,
+            piece_symbol,
+            (square_center_x - 10, square_center_y + 10),
+            fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+            fontScale=0.7,
+            color=(0, 255, 0),
+            thickness=2,
+        )
+
+        info_text = f"({conf:.2f}c, {offset.x:.2f}x, {offset.y:.2f}y)"
+        cv2.putText(
+            annotated_image,
+            info_text,
+            (piece_x + 10, piece_y + 20),
+            fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+            fontScale=0.4,
+            color=(255, 255, 255),
+            thickness=1,
+        )
+
+    return annotated_image
+
+
 def grayscale_to_board(
     grayscale_image: np.ndarray,
     bottom_color: chess.Color,
@@ -197,6 +315,7 @@ def grayscale_to_board(
     conf_threshold: float = 0.5,
     iou_threshold: float = 0.45,
     max_piece_offset: float = 0.4,
+    visualize: bool = False,
 ) -> PhysicalBoard:
     """Detects and maps chess pieces from a grayscale board image to a PhysicalBoard.
 
@@ -214,9 +333,16 @@ def grayscale_to_board(
     Returns:
         PhysicalBoard: PhysicalBoard with mapped pieces and offsets.
     """
-    res = detect_grayscale(grayscale_image, model, conf_threshold, iou_threshold)
+    detection = detect_grayscale(grayscale_image, model, conf_threshold, iou_threshold)
     mapped_squares = map_results_to_squares(
-        grayscale_image.shape[1], grayscale_image.shape[0], res, max_piece_offset
+        grayscale_image.shape[1], grayscale_image.shape[0], detection, max_piece_offset
     )
     board = map_squares_to_board(mapped_squares, bottom_color)
+
+    if visualize:
+        image = draw_square_bounds(grayscale_image)
+        image = draw_bounding_boxes(image, detection)
+        image = draw_mapped_squares(image, mapped_squares)
+        cv2.imshow("Board detection visualization", image)
+
     return board
