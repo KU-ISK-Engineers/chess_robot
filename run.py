@@ -80,7 +80,6 @@ def main():
             model=model,
             camera=camera,
             physical_orientation=Orientation.HUMAN_BOTTOM,
-            capture_delay=0.3,
             conf_threshold=0.5,
             iou_threshold=0.45,
             max_piece_offset=0.99,

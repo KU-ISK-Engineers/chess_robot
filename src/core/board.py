@@ -147,8 +147,8 @@ class BoardCapture(ABC):
 
         Returns:
             Optional[PhysicalBoard]: A `PhysicalBoard` instance representing the captured state
-                of the board, or `None` if the capture process fails, such as due to a detection 
-                or alignment error.
+                of the board, or `None` if the capture process fails, such as due to a camera
+                error.
         """
         pass
 

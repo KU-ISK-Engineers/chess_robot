@@ -118,10 +118,9 @@ class CameraBoardCapture(BoardCapture):
         camera: pylon.InstantCamera,
         physical_orientation: Orientation = Orientation.HUMAN_BOTTOM,
         timeout: int = 5000,
-        capture_delay: float = 0.3,
         conf_threshold: float = 0.5,
         iou_threshold: float = 0.45,
-        max_piece_offset: float = 0.4,
+        max_piece_offset: float = 0.9,
         visualize_board: bool = False,
     ) -> None:
         """
@@ -142,7 +141,6 @@ class CameraBoardCapture(BoardCapture):
         """
         self.camera = camera or default_camera_setup()
         self.timeout = timeout
-        self.capture_delay = capture_delay
         self.model = model
         self.area = None
         self.board = None
@@ -170,14 +168,15 @@ class CameraBoardCapture(BoardCapture):
                 self.timeout, pylon.TimeoutHandling_Return
             )
             if not grab_result.GrabSucceeded():
-                logger.warning("Failed to grab image from camera!")
-                continue
+                logger.error("Failed to grab image from camera!")
+                return None
 
             image = preprocess_image(grab_result.Array)
             cropped_image = self._crop_image(image)
 
             if cropped_image is not None:
                 return cropped_image
+
             logger.warning("No board detected with aruco stickers; retrying.")
             time.sleep(1)
 
@@ -200,39 +199,39 @@ class CameraBoardCapture(BoardCapture):
             else not human_color
         )
 
-        first_image = self.capture_image()
-        if first_image is None:
-            return None
+        while True:
+            first_image = self.capture_image()
+            if first_image is None:
+                return None
 
-        first_board = grayscale_to_board(
-            first_image,
-            perspective,
-            self.model,
-            self.conf_threshold,
-            self.iou_threshold,
-            self.max_piece_offset,
-            visualize=self.visualize_board,
-        )
+            first_board = grayscale_to_board(
+                first_image,
+                perspective,
+                self.model,
+                self.conf_threshold,
+                self.iou_threshold,
+                self.max_piece_offset,
+                visualize=self.visualize_board,
+            )
 
-        second_image = self.capture_image()
-        if second_image is None:
-            return None
+            second_image = self.capture_image()
+            if second_image is None:
+                return None
 
-        second_board = grayscale_to_board(
-            second_image,
-            perspective,
-            self.model,
-            self.conf_threshold,
-            self.iou_threshold,
-            self.max_piece_offset,
-            visualize=self.visualize_board,
-        )
+            second_board = grayscale_to_board(
+                second_image,
+                perspective,
+                self.model,
+                self.conf_threshold,
+                self.iou_threshold,
+                self.max_piece_offset,
+                visualize=self.visualize_board,
+            )
 
-        if not are_boards_equal(first_board.chess_board, second_board.chess_board):
-            logger.info("Inconsistent board states detected; capture failed.")
-            return None
+            if are_boards_equal(first_board.chess_board, second_board.chess_board):
+                return first_board
 
-        return first_board
+            logger.info("Inconsistent board states captured; retrying..")
 
     def _crop_image(self, image: np.ndarray) -> Optional[np.ndarray]:
         """
