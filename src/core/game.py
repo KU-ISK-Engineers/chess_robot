@@ -125,7 +125,6 @@ class Game:
         """
         logger.info("Synchronizing physical board...")
 
-        expected_board = self.physical_board.chess_board
         captured_board = None
 
         done = False
@@ -135,7 +134,7 @@ class Game:
                 continue  # Keeps trying until a valid board capture
 
             moved, done = iter_reset_board(
-                self.piece_mover, self.physical_board, expected_board, self.robot_color
+                self.piece_mover, captured_board, self.physical_board, self.robot_color
             )
             if not moved:
                 break
