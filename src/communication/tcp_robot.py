@@ -97,7 +97,6 @@ class TCPRobotHand(PieceMover):
             str: The formatted command string for the robot, including square positions and offsets.
         """
         # Last row is next to the robot hand
-        # TODO: Make this opposite
         if color == chess.BLACK:
             from_square = flip_square(from_square)
             to_square = flip_square(to_square)
