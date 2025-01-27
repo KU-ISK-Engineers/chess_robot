@@ -11,10 +11,13 @@ from src.detection.basler_camera import (
 import chess
 from typing import Union
 from abc import ABC
+import logging
 
 CAMERA_ORIENTATION = Orientation.HUMAN_BOTTOM
 MODEL_PATH = "training/models/yolo8_200.pt"
 MAX_PIECE_OFFSET = 0.99
+
+logging.getLogger("ultralytics").setLevel(logging.CRITICAL)
 
 
 class RobotTestCase(unittest.TestCase, ABC):
