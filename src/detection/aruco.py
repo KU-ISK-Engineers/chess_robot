@@ -88,10 +88,11 @@ def order_points(pts: np.ndarray) -> np.ndarray:
 
     # Create an array of ordered points for the transformation
     rect = np.zeros((4, 2), dtype="float32")
-    rect[0] = top_left_sorted[0]  # Top-left
-    rect[1] = top_right_sorted[1]  # Top-right
-    rect[2] = bottom_right_sorted[2]  # Bottom-right
-    rect[3] = bottom_left_sorted[3]  # Bottom-left
+
+    rect[0] = top_left_sorted[2]  # Bottom-right corner
+    rect[1] = top_right_sorted[3]  # Bottom-left corner
+    rect[2] = bottom_right_sorted[0]  # Top-left corner
+    rect[3] = bottom_left_sorted[1]  # Top-right corner
 
     return rect
 
