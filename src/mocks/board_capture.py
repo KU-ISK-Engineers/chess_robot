@@ -71,7 +71,7 @@ class SimulatedBoardCapture(BoardCapture):
         # Determine the action based on the current player's turn
         if self.game.current_player == Player.HUMAN:
             result = self.engine.play(
-                chess_board, chess.engine.Limit(time=0.1, depth=4), 
+                chess_board, chess.engine.Limit(time=0.01, depth=4), 
             )
             chess_board.push(result.move)
             return PhysicalBoard(chess_board)

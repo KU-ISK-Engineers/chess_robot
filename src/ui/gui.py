@@ -183,20 +183,23 @@ def chess_engine_thread() -> None:
             elif move and not valid:
                 show_wrong_move_msg(frame=frame)
 
-
 def select_level(level: str) -> None:
     if level == "beginner":
         game.set_depth(1)
         game.set_skill_level(0)
+        game.set_thinking_time(0.05)
     elif level == "intermediate":
         game.set_depth(2)
         game.set_skill_level(2)
+        game.set_thinking_time(0.1)
     elif level == "advanced":
         game.set_depth(3)
         game.set_skill_level(4)
+        game.set_thinking_time(0.5)
     elif level == "hard":
         game.set_depth(6)
         game.set_skill_level(20)
+        game.set_thinking_time(1.0)
     color_screen()
 
 
@@ -281,7 +284,6 @@ def assign_color(selected_color: str) -> None:
     elif selected_color == "black":
         game.reset_state(human_color=chess.BLACK)
     game_screen()
-
 
 def show_game_result() -> None:
     clear_screen()
@@ -399,7 +401,7 @@ def gui_main(game_obj: Game, fullscreen: bool = True, splash: bool = True):
     if splash:
         root.attributes("-type", "splash")
 
-    #root.update_idletasks()
+    root.update_idletasks()
 
     background()
     level_screen()

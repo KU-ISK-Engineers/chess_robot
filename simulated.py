@@ -64,7 +64,7 @@ def main():
 
             # Start the game with the simulated components
             game = Game(
-                board_capture=board_capture, piece_mover=piece_mover, engine=engine, 
+                board_capture=board_capture, piece_mover=piece_mover, engine=engine
             )
             logging.info("Game initialized, launching GUI...")
             
