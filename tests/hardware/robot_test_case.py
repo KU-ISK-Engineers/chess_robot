@@ -28,8 +28,7 @@ class RobotTestCase(unittest.TestCase, ABC):
             conf_threshold=0.5,
             iou_threshold=0.45,
             max_piece_offset=MAX_PIECE_OFFSET,
-            timeout=5000,
-            visualize_board=True,
+            timeout=5000
         )
 
         self.robot_hand = TCPRobotHand()
