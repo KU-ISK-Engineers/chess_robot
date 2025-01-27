@@ -400,6 +400,8 @@ def gui_main(game_obj: Game, fullscreen: bool = True, splash: bool = True):
     root.attributes("-fullscreen", fullscreen)
     if splash:
         root.attributes("-type", "splash")
+    
+    root.update()
 
     root.update_idletasks()
 
