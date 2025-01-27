@@ -7,7 +7,6 @@ from src.core.moves import execute_move, move_piece, iter_reset_board
 from src.detection.basler_camera import (
     CameraBoardCapture,
     Orientation,
-    default_camera_setup,
 )
 import chess
 from typing import Union
@@ -20,13 +19,8 @@ MAX_PIECE_OFFSET = 0.99
 
 class RobotTestCase(unittest.TestCase, ABC):
     def setUp(self) -> None:
-        camera = default_camera_setup()
-        if camera is None:
-            raise RuntimeError("Failed to start camera")
-
         self.board_capture = CameraBoardCapture(
             model=YOLO(MODEL_PATH),
-            camera=camera,
             physical_orientation=CAMERA_ORIENTATION,
             conf_threshold=0.5,
             iou_threshold=0.45,

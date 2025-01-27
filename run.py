@@ -7,7 +7,6 @@ import chess.engine
 from src.communication.tcp_robot import TCPRobotHand
 from src.detection.basler_camera import (
     CameraBoardCapture,
-    default_camera_setup,
     Orientation,
 )
 from src.ui.gui import gui_main
@@ -66,20 +65,9 @@ def main() -> None:
     try:
         robot_hand = TCPRobotHand(ip=args.ip, port=args.port, timeout=30)
         model = YOLO(args.model_path)
-        camera = default_camera_setup()
-
-        if not camera:
-            logging.error(
-                "Camera setup failed. Ensure camera is connected and configured."
-            )
-            return
-
         board_capture = CameraBoardCapture(
             model=model,
-            camera=camera,
             physical_orientation=Orientation.HUMAN_BOTTOM,
-            conf_threshold=0.5,
-            iou_threshold=0.45,
             max_piece_offset=0.99,
             timeout=5000,
             visualize_board=args.debug,

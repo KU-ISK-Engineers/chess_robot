@@ -21,7 +21,7 @@ class Orientation(Enum):
     ROBOT_BOTTOM = 1
 
 
-def default_camera_setup() -> Optional[pylon.InstantCamera]:
+def default_camera_setup() -> pylon.InstantCamera:
     """
     Configures and initializes a camera with default settings for capturing images.
 
@@ -44,7 +44,7 @@ def default_camera_setup() -> Optional[pylon.InstantCamera]:
         return camera
     except Exception:
         logger.exception("Failed to initialize camera!")
-        return None
+        raise
 
 
 def crop_image_by_area(image: np.ndarray, area) -> np.ndarray:
@@ -115,7 +115,6 @@ class CameraBoardCapture(BoardCapture):
     def __init__(
         self,
         model: YOLO,
-        camera: pylon.InstantCamera,
         physical_orientation: Orientation = Orientation.HUMAN_BOTTOM,
         timeout: int = 5000,
         conf_threshold: float = 0.5,
@@ -139,7 +138,7 @@ class CameraBoardCapture(BoardCapture):
         Raises:
             RuntimeError: If camera initialization fails.
         """
-        self.camera = camera or default_camera_setup()
+        self.camera = default_camera_setup()
         self.timeout = timeout
         self.model = model
         self.area = None
