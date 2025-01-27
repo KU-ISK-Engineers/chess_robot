@@ -294,15 +294,24 @@ def draw_mapped_squares(
             thickness=2,
         )
 
-        info_text = f"({conf:.2f}c, {offset.x:.2f}x, {offset.y:.2f}y)"
         cv2.putText(
             annotated_image,
-            info_text,
-            (piece_x + 10, piece_y + 20),
-            fontFace=cv2.FONT_HERSHEY_SIMPLEX,
-            fontScale=0.4,
+            f"{offset.x:.2f}",
+            (square_center_x - 30, square_center_y + 40),
+            fontFace=cv2.FONT_HERSHEY_COMPLEX,
+            fontScale=0.7,
             color=(255, 255, 255),
-            thickness=1,
+            thickness=2,
+        )
+
+        cv2.putText(
+            annotated_image,
+            f"{offset.y:.2f}",
+            (square_center_x - 30, square_center_y + 60),
+            fontFace=cv2.FONT_HERSHEY_COMPLEX,
+            fontScale=0.7,
+            color=(255, 255, 255),
+            thickness=2,
         )
 
     return annotated_image
@@ -340,9 +349,15 @@ def grayscale_to_board(
     board = map_squares_to_board(mapped_squares, bottom_color)
 
     if visualize:
-        image = draw_square_bounds(grayscale_image)
+        image = cv2.cvtColor(grayscale_image, cv2.COLOR_GRAY2BGR)
+        image = draw_square_bounds(image)
         image = draw_bounding_boxes(image, detection)
         image = draw_mapped_squares(image, mapped_squares)
-        cv2.imshow("Board detection visualization", image)
+
+        cv2.waitKey(1)
+
+        resized_image = cv2.resize(image, (1280, 720))
+        cv2.imshow("Board detection visualization", resized_image)
+        cv2.waitKey(1)
 
     return board

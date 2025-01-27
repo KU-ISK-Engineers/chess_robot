@@ -19,9 +19,8 @@ def setup_logging(debug: bool = False):
     log_file = os.path.join(log_dir, "run.log")
     os.makedirs(log_dir, exist_ok=True)
 
-    level = logging.DEBUG if debug else logging.INFO
     logger = logging.getLogger()
-    logger.setLevel(level)
+    logger.setLevel(logging.INFO)
 
     formatter = logging.Formatter("%(asctime)s %(levelname)s:%(name)s:%(message)s")
 
