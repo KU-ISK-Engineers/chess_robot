@@ -3,7 +3,7 @@ import unittest
 from ultralytics import YOLO
 from src.communication.tcp_robot import TCPRobotHand
 from src.core.board import PhysicalBoard, are_boards_equal
-from src.core.moves import execute_move, move_piece, iter_reset_board
+from src.core.moves import move_piece, iter_reset_board
 from src.detection.basler_camera import (
     CameraBoardCapture,
     Orientation,
@@ -28,13 +28,14 @@ class RobotTestCase(unittest.TestCase, ABC):
             conf_threshold=0.5,
             iou_threshold=0.45,
             max_piece_offset=MAX_PIECE_OFFSET,
-            timeout=5000
+            timeout=5000,
         )
 
         self.robot_hand = TCPRobotHand()
         self.human_color = chess.WHITE
         self.robot_color = not self.human_color
-        self.board = PhysicalBoard()
+        self.chess_board = chess.Board()
+        self.pieces_reserve: dict[int, list[chess.Piece]] = {}
 
     def capture_board(self) -> PhysicalBoard:
         captured_board = self.board_capture.capture_board(self.human_color)
@@ -42,38 +43,34 @@ class RobotTestCase(unittest.TestCase, ABC):
             raise RuntimeError("Failed to capture board")
         return captured_board
 
-    def set_board(
-        self, expected_board: PhysicalBoard, human_color: chess.Color
-    ) -> bool:
-        self.human_color = human_color
-        self.robot_color = not human_color
-
-        captured_board = None
+    def assert_rearrange_board(
+        self, expected_board: chess.Board, human_color: chess.Color
+    ) -> None:
+        robot_color = not human_color
         done = False
         while not done:
             captured_board = self.capture_board()
             moved, done = iter_reset_board(
-                self.robot_hand, captured_board, expected_board, self.robot_color
+                self.robot_hand,
+                captured_board,
+                PhysicalBoard(expected_board),
+                robot_color,
             )
             if not moved:
                 break
 
-        if done and captured_board is not None:
-            self.board = captured_board
-
-        return done
-
-    def assert_set_board(
-        self, expected_board: PhysicalBoard, human_color: chess.Color
-    ) -> None:
-        done = self.set_board(expected_board, human_color)
         self.assertTrue(done, "Function sync board failed")
 
         captured_board = self.capture_board()
         self.assertTrue(
-            are_boards_equal(captured_board.chess_board, expected_board.chess_board),
+            are_boards_equal(captured_board.chess_board, expected_board),
             "Boards do not match after board rearrangement",
         )
+
+        self.chess_board = expected_board.copy()
+        self.human_color = human_color
+        self.robot_color = robot_color
+        self.pieces_reserve.clear()  # Pieces reserve simulated as a stack
 
     def assert_move_piece(
         self,
@@ -85,23 +82,29 @@ class RobotTestCase(unittest.TestCase, ABC):
         if isinstance(to_square, str):
             to_square = chess.parse_square(to_square)
 
-        starting_board = self.capture_board()
+        captured_board = self.capture_board()
         self.assertTrue(
-            are_boards_equal(starting_board.chess_board, self.board.chess_board),
+            are_boards_equal(captured_board.chess_board, self.chess_board),
             "Board arrangement in memory does not match physical board arrangement",
         )
 
-        origin_piece = starting_board.chess_board.piece_at(from_square)
-        target_piece = starting_board.chess_board.piece_at(to_square)
-        if target_piece is not None:
-            raise ValueError("Piece already exists in target square")
+        origin_piece = (
+            self.chess_board.piece_at(from_square)
+            if from_square in chess.SQUARES
+            else self.pieces_reserve[from_square][-1]
+        )
+        if origin_piece is None:
+            raise ValueError("Cannot move empty square")
 
-        expected_chess_board = starting_board.chess_board.copy()
-        expected_chess_board.remove_piece_at(from_square)
-        expected_chess_board.set_piece_at(to_square, origin_piece)
+        expected_chess_board = self.chess_board.copy()
+        if from_square in chess.SQUARES:
+            expected_chess_board.remove_piece_at(from_square)
+
+        if to_square in chess.SQUARES:
+            expected_chess_board.set_piece_at(to_square, origin_piece)
 
         done = move_piece(
-            self.robot_hand, starting_board, from_square, to_square, self.robot_color
+            self.robot_hand, captured_board, from_square, to_square, self.robot_color
         )
         self.assertTrue(done, "Function move piece failed")
 
@@ -111,33 +114,12 @@ class RobotTestCase(unittest.TestCase, ABC):
             "Boards do not match after move",
         )
 
-        self.board.chess_board.remove_piece_at(from_square)
-        self.board.chess_board.set_piece_at(to_square, origin_piece)
+        if from_square in chess.SQUARES:
+            self.chess_board.remove_piece_at(from_square)
+        else:
+            self.pieces_reserve[from_square].pop()
 
-    def assert_execute_move(
-        self,
-        move: Union[chess.Move, str],
-    ) -> None:
-        if isinstance(move, str):
-            move = chess.Move.from_uci(move)
-
-        starting_board = self.capture_board()
-        self.assertTrue(
-            are_boards_equal(starting_board.chess_board, self.board.chess_board),
-            "Board arrangement in memory does not match physical board arrangement",
-        )
-
-        expected_board = self.board.chess_board.copy()
-        expected_board.push(move)
-
-        self.board.piece_offsets = starting_board.piece_offsets
-        done = execute_move(self.robot_hand, self.board, move, self.robot_color)
-        self.assertTrue(done, "Function execute move failed")
-
-        captured_board = self.capture_board()
-        self.assertTrue(
-            are_boards_equal(captured_board.chess_board, expected_board),
-            "Boards do not match after move",
-        )
-
-        self.board.chess_board.push(move)
+        if to_square in chess.SQUARES:
+            self.chess_board.set_piece_at(to_square, origin_piece)
+        else:
+            self.pieces_reserve.setdefault(to_square, []).append(origin_piece)
