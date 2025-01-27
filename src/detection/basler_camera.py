@@ -53,13 +53,13 @@ def crop_image_by_area(image: np.ndarray, area) -> np.ndarray:
 
     Args:
         image (np.ndarray): The image to be cropped.
-        area: Four corner points defining the region to crop.
+        area: Four corner points defining the region to crop in the order of top-left, top-right, bottom-right, bottom-left
 
     Returns:
         np.ndarray: The cropped image focused on the specified area.
     """
 
-    def max_dimension(p1, p2, p3, p4):
+    def max_dimension(p1, p2, p3, p4) -> tuple[int, int]:
         width = max(np.linalg.norm(p2 - p1), np.linalg.norm(p4 - p3))
         height = max(np.linalg.norm(p3 - p1), np.linalg.norm(p2 - p4))
         return int(width), int(height)
