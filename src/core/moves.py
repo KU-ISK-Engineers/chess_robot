@@ -45,7 +45,7 @@ class PieceMover(ABC):
         origin_offset: PieceOffset,
     ) -> bool:
         """Moves a piece from one square to another on a physical board.
-        
+
         Note: The piece is put in the center of the square.
 
         Args:
@@ -182,8 +182,8 @@ def move_piece(
 ) -> bool:
     """
     Moves a piece from one square to another on the physical board, updating square offsets
-    as needed. 
-    
+    as needed.
+
     Note: This function directly handles physical piece movement and does not check
     the move's legality.
 
@@ -200,7 +200,7 @@ def move_piece(
     Returns:
         bool: `True` if the piece was moved successfully on the physical board; `False` otherwise.
     """
-    
+
     if from_square in chess.SQUARES:
         origin_offset = board.get_piece_offset(from_square, color)
     else:
@@ -249,21 +249,22 @@ def iter_reset_board(
     """
     # Create mappings for current and expected piece positions
     current_positions = {
-        square: board.chess_board.piece_at(square)
+        square: piece
         for square in chess.SQUARES
-        if board.chess_board.piece_at(square)
+        if (piece := board.chess_board.piece_at(square))
     }
+
     expected_positions = {
-        square: expected_board.chess_board.piece_at(square)
+        square: piece
         for square in chess.SQUARES
-        if expected_board.chess_board.piece_at(square)
+        if (piece := expected_board.chess_board.piece_at(square))
     }
 
     # Find pieces that are correctly placed, to avoid unnecessary moves
     correctly_placed = {
         square: piece
         for square, piece in expected_positions.items()
-        if current_positions.get(square) == piece
+        if (current_piece := current_positions.get(square)) == piece
     }
 
     # Remove correctly placed pieces from current and expected mappings

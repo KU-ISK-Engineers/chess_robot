@@ -270,7 +270,6 @@ def draw_mapped_squares(
     for mapped_square in mapped_squares:
         chess_square = mapped_square.chess_square
         offset = mapped_square.offset
-        conf = mapped_square.confidence
         piece_symbol = mapped_square.piece.symbol()
 
         col = chess.square_file(chess_square)

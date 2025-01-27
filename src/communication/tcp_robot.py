@@ -9,17 +9,14 @@ logger = logging.getLogger(__name__)
 
 
 class TCPRobotHand(PieceMover):
-    def __init__(self, 
-                 ip: str = "192.168.1.6", 
-                 port: int = 6001, 
-                 timeout: int = 60):
+    def __init__(self, ip: str = "192.168.1.6", port: int = 6001, timeout: int = 60):
         """
         Initializes the TCPRobotHand with IP address, port, and timeout for socket connection.
 
         Args:
-            ip (str): The IP address of the robot hand. 
+            ip (str): The IP address of the robot hand.
             port (int): The port number for communication with the robot hand.
-            timeout (int): The timeout for socket communication in seconds. 
+            timeout (int): The timeout for socket communication in seconds.
         """
         self.ip = ip
         self.port = port
@@ -28,19 +25,20 @@ class TCPRobotHand(PieceMover):
         self.robot_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.robot_socket.settimeout(timeout)
         self._connect()
-        
+
     def _connect(self) -> bool:
         try:
-            self.robot_socket.connect((self.ip, self.port))  
+            self.robot_socket.connect((self.ip, self.port))
             logger.info(f"Connected to TCP robot hand {self.ip}:{self.port}")
             return True
         except socket.error as e:
-            logger.error(f"Could not connect to TCP robot hand {self.ip}:{self.port}! Error: {e}")
+            logger.error(
+                f"Could not connect to TCP robot hand {self.ip}:{self.port}! Error: {e}"
+            )
             return False
-        
+
     def __del__(self):
         self.robot_socket.close()
-        
 
     def reset(self) -> bool:
         """
@@ -60,7 +58,7 @@ class TCPRobotHand(PieceMover):
     ) -> bool:
         """
         Moves a piece from one square to another using the robot hand, adjusting for perspective.
-        
+
         Note: First row is at the bottom of the robot hand's perspective.
 
         Args:
@@ -84,7 +82,7 @@ class TCPRobotHand(PieceMover):
     ) -> str:
         """
         Forms a command string for moving a piece, accounting for offset and color perspective.
-        
+
         Note: First row is at the bottom of the robot hand's perspective.
 
         Args:
@@ -124,7 +122,7 @@ class TCPRobotHand(PieceMover):
                   False otherwise.
         """
         logger.info(f"Sending TCP command: {command}")
-        
+
         try:
             self.robot_socket.sendall(command.encode("utf-8"))
             response = self.robot_socket.recv(1024)
@@ -135,10 +133,14 @@ class TCPRobotHand(PieceMover):
             else:
                 logger.warning("Received no TCP response")
         except (ConnectionResetError, BrokenPipeError) as e:
-            logger.error(f"No connection to TCP robot hand {self.ip}:{self.port}, attempting reconnect! Error: {e}")
+            logger.error(
+                f"No connection to TCP robot hand {self.ip}:{self.port}, attempting reconnect! Error: {e}"
+            )
             if self._connect():
                 return self.issue_command(command)
         except socket.error as e:
-            logger.error(f"Could not connect to TCP robot hand {self.ip}:{self.port}! Error: {e}")
-        
+            logger.error(
+                f"Could not connect to TCP robot hand {self.ip}:{self.port}! Error: {e}"
+            )
+
         return False

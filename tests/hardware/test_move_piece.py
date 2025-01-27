@@ -14,10 +14,10 @@ class TestMovePiece(RobotTestCase):
         # self.set_board(PhysicalBoard(), human_color=chess.BLACK)
         # self.assert_move_piece(from_square="e2", to_square="e4", expected_piece="P")
         # self.assert_move_piece(from_square="e7", to_square="e5", expected_piece="p")
-    
+
     def test_move_pieces_up(self):
         moves = [("d2", "d4"), ("b2", "b4"), ("c2", "c4")]
-        
+
         self.set_board(PhysicalBoard(), human_color=chess.WHITE)
         for from_square, to_square in moves:
             self.assert_move_piece(from_square=from_square, to_square=to_square)
@@ -48,10 +48,14 @@ class TestMovePiece(RobotTestCase):
 
     def test_remove_piece(self):
         self.set_board(PhysicalBoard(), human_color=chess.WHITE)
-        self.assert_move_piece(from_square="e2", to_square=off_board_square(chess.PAWN, chess.WHITE))
+        self.assert_move_piece(
+            from_square="e2", to_square=off_board_square(chess.PAWN, chess.WHITE)
+        )
 
         self.set_board(PhysicalBoard(), human_color=chess.BLACK)
-        self.assert_move_piece(from_square="e2", to_square=off_board_square(chess.PAWN, chess.WHITE))
+        self.assert_move_piece(
+            from_square="e2", to_square=off_board_square(chess.PAWN, chess.WHITE)
+        )
 
     def test_remove_white(self):
         self.set_board(PhysicalBoard(), human_color=chess.WHITE)
@@ -94,19 +98,27 @@ class TestMovePiece(RobotTestCase):
     @unittest.skip("No pieces reserve for both colors")
     def test_remove_all(self):
         pass
-    
+
     @unittest.skip("No pieces reserve for both colors")
     def test_remove_all_and_put(self):
         pass
 
     def test_remove_and_put(self):
         self.set_board(PhysicalBoard(), human_color=chess.WHITE)
-        self.assert_move_piece(from_square="e2", to_square=off_board_square(chess.PAWN, chess.WHITE))
-        self.assert_move_piece(from_square=off_board_square(chess.PAWN, chess.WHITE), to_square="e2")
+        self.assert_move_piece(
+            from_square="e2", to_square=off_board_square(chess.PAWN, chess.WHITE)
+        )
+        self.assert_move_piece(
+            from_square=off_board_square(chess.PAWN, chess.WHITE), to_square="e2"
+        )
 
         self.set_board(PhysicalBoard(), human_color=chess.BLACK)
-        self.assert_move_piece(from_square="e2", to_square=off_board_square(chess.PAWN, chess.WHITE))
-        self.assert_move_piece(from_square=off_board_square(chess.PAWN, chess.WHITE), to_square="e2")
+        self.assert_move_piece(
+            from_square="e2", to_square=off_board_square(chess.PAWN, chess.WHITE)
+        )
+        self.assert_move_piece(
+            from_square=off_board_square(chess.PAWN, chess.WHITE), to_square="e2"
+        )
 
     def test_repeated_moves(self):
         self.set_board(PhysicalBoard(), human_color=chess.WHITE)
