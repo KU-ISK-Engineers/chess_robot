@@ -16,7 +16,7 @@ MAX_PIECE_OFFSET = 0.99
 class RobotTestCase(unittest.TestCase, ABC):
     def setUp(self) -> None:
         camera = default_camera_setup()
-        if not camera:
+        if camera is None:
             raise RuntimeError("Failed to start camera")
         
         self.board_capture = CameraBoardCapture(
@@ -68,21 +68,19 @@ class RobotTestCase(unittest.TestCase, ABC):
         self,
         from_square: Union[chess.Square, str],
         to_square: Union[chess.Square, str],
-        expected_piece: Union[chess.Piece, str, None]
     ) -> None:
         if isinstance(from_square, str):
             from_square = chess.parse_square(from_square)
         if isinstance(to_square, str):
             to_square = chess.parse_square(to_square)
-        if isinstance(expected_piece, str):
-            expected_piece = chess.Piece.from_symbol(expected_piece)
             
         starting_board = self.capture_board()
+        self.assertTrue(are_boards_equal(starting_board.chess_board, self.board.chess_board), "Board arrangement in memory does not match physical board arrangement")
+
         origin_piece = starting_board.chess_board.piece_at(from_square)
-        self.assertEqual(origin_piece, expected_piece, "Piece in origin square is not expected")
-        
         target_piece = starting_board.chess_board.piece_at(to_square)
-        self.assertIsNone(target_piece, "Piece already exists in target square")
+        if target_piece is not None:
+            raise ValueError("Piece already exists in target square")
         
         expected_chess_board = starting_board.chess_board.copy()
         expected_chess_board.remove_piece_at(from_square)
@@ -93,6 +91,9 @@ class RobotTestCase(unittest.TestCase, ABC):
 
         captured_board = self.capture_board()
         self.assertTrue(are_boards_equal(captured_board.chess_board, expected_chess_board), "Boards do not match after move")
+
+        self.board.chess_board.remove_piece_at(from_square)
+        self.board.chess_board.set_piece_at(to_square, origin_piece)
     
     def assert_execute_move(
         self,
