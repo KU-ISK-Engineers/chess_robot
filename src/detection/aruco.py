@@ -2,6 +2,7 @@ from typing import Optional, Tuple
 import numpy as np
 import cv2
 
+
 def centroid(rectangle: np.ndarray) -> Tuple[float, float]:
     """Calculates the centroid of a rectangle from four corner points.
 
@@ -14,7 +15,9 @@ def centroid(rectangle: np.ndarray) -> Tuple[float, float]:
     return tuple(np.mean(rectangle, axis=0))
 
 
-def find_rectangles(pts: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def find_rectangles(
+    pts: np.ndarray,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Groups and sorts points into four rectangles in the order: top-left, top-right, bottom-left, bottom-right.
 
     This function assumes the points represent four rectangles' corners. It groups points into four sets of four,
@@ -33,9 +36,9 @@ def find_rectangles(pts: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray
     """
     if len(pts) < 16:
         raise ValueError("Insufficient points to form four rectangles.")
-    
+
     # Group points into four sets of four (assumes points are ordered correctly)
-    grouped_rectangles = [pts[i:i + 4] for i in range(0, len(pts), 4)]
+    grouped_rectangles = [pts[i : i + 4] for i in range(0, len(pts), 4)]
     centroids = [centroid(rect) for rect in grouped_rectangles]
     centroids_rectangles = list(zip(centroids, grouped_rectangles))
 
@@ -48,7 +51,9 @@ def find_rectangles(pts: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray
     return top_left[1], top_right[1], bottom_left[1], bottom_right[1]
 
 
-def sort_rectangle_points(points: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def sort_rectangle_points(
+    points: np.ndarray,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Sorts four points of a rectangle into a consistent order: top-left, top-right, bottom-right, bottom-left.
 
     This function calculates the angle of each point relative to the centroid, then sorts points
@@ -69,16 +74,18 @@ def sort_rectangle_points(points: np.ndarray) -> Tuple[np.ndarray, np.ndarray, n
 def order_points(pts: np.ndarray) -> np.ndarray:
     """Orders points consistently for perspective transformation as: top-left, top-right, bottom-left, bottom-right.
 
-    This function groups points into four rectangles, then sorts and arranges the points to form an ordered 
+    This function groups points into four rectangles, then sorts and arranges the points to form an ordered
     list that defines a consistent area for perspective transformation.
 
     Args:
         pts (np.ndarray): A flat (16, 2) array representing corners of multiple rectangles.
 
     Returns:
-        np.ndarray: A (4, 2) array of points ordered as top-left, top-right, bottom-left, bottom-right.
+        np.ndarray: A (4, 2) array of points ordered as top-left, top-right, bottom-right, bottom-left.
     """
-    top_left_rect, top_right_rect, bottom_left_rect, bottom_right_rect = find_rectangles(pts)
+    top_left_rect, top_right_rect, bottom_left_rect, bottom_right_rect = (
+        find_rectangles(pts)
+    )
 
     # Sort points within each rectangle to maintain a consistent order
     top_left_sorted = sort_rectangle_points(top_left_rect)
@@ -88,10 +95,11 @@ def order_points(pts: np.ndarray) -> np.ndarray:
 
     # Create an array of ordered points for the transformation
     rect = np.zeros((4, 2), dtype="float32")
-    rect[0] = top_left_sorted[0]  # Top-left
-    rect[1] = top_right_sorted[1]  # Top-right
-    rect[2] = bottom_right_sorted[2]  # Bottom-right
-    rect[3] = bottom_left_sorted[3]  # Bottom-left
+
+    rect[0] = top_left_sorted[2]  # Bottom-right corner
+    rect[1] = top_right_sorted[3]  # Bottom-left corner
+    rect[2] = bottom_right_sorted[0]  # Top-left corner
+    rect[3] = bottom_left_sorted[1]  # Top-right corner
 
     return rect
 
@@ -106,21 +114,18 @@ def detect_aruco_area(image: np.ndarray) -> Optional[np.ndarray]:
         image (np.ndarray): The input image in which to detect ArUco markers, typically a grayscale or color image.
 
     Returns:
-        Optional[np.ndarray]: A (4, 2) array of four ordered points (top-left, top-right, bottom-left, bottom-right) representing
+        Optional[np.ndarray]: A (4, 2) array of four ordered points (top-left, top-right, bottom-right, bottom-left) representing
         the detected area, or None if fewer than four markers are detected.
     """
-    # Initialize the dictionary and parameters for ArUco marker detection
     aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_250)
     aruco_params = cv2.aruco.DetectorParameters()
 
-    # Detect markers within the image
-    corners, ids, _ = cv2.aruco.detectMarkers(image, aruco_dict, parameters=aruco_params)
-    
-    # Ensure that exactly four markers are detected
+    corners, ids, _ = cv2.aruco.detectMarkers(
+        image, aruco_dict, parameters=aruco_params
+    )
+
     if ids is None or len(ids) != 4:
         return None
 
-    # Collect all corner points of the detected markers
     all_points = np.concatenate(corners).reshape(-1, 2)
-    # Order points to define the area
     return order_points(all_points)

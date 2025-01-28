@@ -32,7 +32,7 @@ class SimulatedBoardCapture(BoardCapture):
         """
         self.engine = engine
         self.game = game
-        self.engine.configure({"Skill Level": 4})  
+        self.engine.configure({"Skill Level": 4})
 
     def track_game(self, game: Game) -> None:
         """Associates a game instance with this board capture instance.
@@ -42,7 +42,7 @@ class SimulatedBoardCapture(BoardCapture):
         """
         self.game = game
 
-    def capture_board(self, human_perspective: chess.Color) -> Optional[PhysicalBoard]:
+    def capture_board(self, human_color: chess.Color) -> Optional[PhysicalBoard]:
         """Captures and updates the state of the physical board based on whose turn it is.
 
         On the player's turn (HUMAN), this method generates a move using
@@ -61,24 +61,23 @@ class SimulatedBoardCapture(BoardCapture):
             RuntimeError: If a game instance has not been set before calling this method.
             ValueError: If `current_player` in the game is neither `HUMAN` nor `ROBOT`.
         """
-        
+
         if not self.game:
             raise RuntimeError("Game instance must be set before capturing the board.")
 
-        # Copy the current chess board from the game state
         chess_board = self.game.get_chess_board().copy()
 
-        # Determine the action based on the current player's turn
         if self.game.current_player == Player.HUMAN:
             result = self.engine.play(
                 chess_board, chess.engine.Limit(time=0.01, depth=4), 
             )
+            if not result or not result.move:
+                return None
+
             chess_board.push(result.move)
             return PhysicalBoard(chess_board)
-        
+
         elif self.game.current_player == Player.ROBOT:
-            # Return the unchanged state of the board
             return PhysicalBoard(chess_board)
 
-        # Raise an error if the player is neither HUMAN nor ROBOT
         raise ValueError("Unknown player type. Expected HUMAN or ROBOT.")

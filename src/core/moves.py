@@ -9,18 +9,12 @@ from src.core.board import OFFSET_SQUARE_CENTER, PhysicalBoard, PieceOffset
 logger = logging.getLogger(__name__)
 
 OFF_BOARD_SQUARES = {
-    (chess.ROOK, chess.WHITE): -1,
-    (chess.BISHOP, chess.WHITE): -2,
-    (chess.KNIGHT, chess.WHITE): -3,
-    (chess.QUEEN, chess.WHITE): -4,
-    (chess.KING, chess.WHITE): -5,
-    (chess.PAWN, chess.WHITE): -6,
-    (chess.ROOK, chess.BLACK): -7,
-    (chess.BISHOP, chess.BLACK): -8,
-    (chess.KNIGHT, chess.BLACK): -9,
-    (chess.QUEEN, chess.BLACK): -10,
-    (chess.KING, chess.BLACK): -11,
-    (chess.PAWN, chess.BLACK): -12,
+    chess.ROOK: -1,
+    chess.KNIGHT: -2,
+    chess.BISHOP: -3,
+    chess.QUEEN: -4,
+    chess.KING: -5,
+    chess.PAWN: -6,
 }
 
 
@@ -34,7 +28,9 @@ def off_board_square(piece_type: chess.PieceType, piece_color: chess.Color) -> i
     Returns:
         int: The coordinate representing the off-board location for the given piece.
     """
-    return OFF_BOARD_SQUARES[(piece_type, piece_color)]
+
+    # Only one color pieces are supported currently due to promotion
+    return OFF_BOARD_SQUARES[piece_type]
 
 
 class PieceMover(ABC):
@@ -49,7 +45,7 @@ class PieceMover(ABC):
         origin_offset: PieceOffset,
     ) -> bool:
         """Moves a piece from one square to another on a physical board.
-        
+
         Note: The piece is put in the center of the square.
 
         Args:
@@ -186,8 +182,8 @@ def move_piece(
 ) -> bool:
     """
     Moves a piece from one square to another on the physical board, updating square offsets
-    as needed. 
-    
+    as needed.
+
     Note: This function directly handles physical piece movement and does not check
     the move's legality.
 
@@ -204,7 +200,7 @@ def move_piece(
     Returns:
         bool: `True` if the piece was moved successfully on the physical board; `False` otherwise.
     """
-    
+
     if from_square in chess.SQUARES:
         origin_offset = board.get_piece_offset(from_square, color)
     else:
@@ -253,21 +249,22 @@ def iter_reset_board(
     """
     # Create mappings for current and expected piece positions
     current_positions = {
-        square: board.chess_board.piece_at(square)
+        square: piece
         for square in chess.SQUARES
-        if board.chess_board.piece_at(square)
+        if (piece := board.chess_board.piece_at(square))
     }
+
     expected_positions = {
-        square: expected_board.chess_board.piece_at(square)
+        square: piece
         for square in chess.SQUARES
-        if expected_board.chess_board.piece_at(square)
+        if (piece := expected_board.chess_board.piece_at(square))
     }
 
     # Find pieces that are correctly placed, to avoid unnecessary moves
     correctly_placed = {
         square: piece
         for square, piece in expected_positions.items()
-        if current_positions.get(square) == piece
+        if (current_piece := current_positions.get(square)) == piece
     }
 
     # Remove correctly placed pieces from current and expected mappings

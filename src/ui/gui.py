@@ -152,7 +152,6 @@ def svg_board(frame: tk.Frame) -> None:
 
 
 def chess_engine_thread() -> None:
-
     screen_width = root.winfo_width()
     screen_height = root.winfo_height()
 
@@ -178,11 +177,11 @@ def chess_engine_thread() -> None:
                 svg_board(frame)
         elif game.current_player == Player.HUMAN:
             move, valid = game.human_made_move()
-            logger.info(move, valid)
             if move and valid:
                 svg_board(frame)
             elif move and not valid:
                 show_wrong_move_msg(frame=frame)
+
 
 def select_level(level: str) -> None:
     if level == "beginner":

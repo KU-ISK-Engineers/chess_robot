@@ -7,21 +7,19 @@ import chess.engine
 from src.communication.tcp_robot import TCPRobotHand
 from src.detection.basler_camera import (
     CameraBoardCapture,
-    default_camera_setup,
-    Orientation
+    Orientation,
 )
 from src.ui.gui import gui_main
 from src.core.game import Game
 
 
-def setup_logging(debug: bool = False):
+def setup_logging() -> None:
     log_dir = "logs"
     log_file = os.path.join(log_dir, "run.log")
     os.makedirs(log_dir, exist_ok=True)
 
-    level = logging.DEBUG if debug else logging.INFO
     logger = logging.getLogger()
-    logger.setLevel(level)
+    logger.setLevel(logging.INFO)
 
     formatter = logging.Formatter("%(asctime)s %(levelname)s:%(name)s:%(message)s")
 
@@ -33,8 +31,10 @@ def setup_logging(debug: bool = False):
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
 
+    logging.getLogger("ultralytics").setLevel(logging.CRITICAL)
 
-def parse_arguments():
+
+def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run the chess-playing robot system.")
     parser.add_argument(
         "--ip", type=str, default="192.168.1.6", help="IP address for the robot hand"
@@ -58,30 +58,19 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def main():
+def main() -> None:
+    setup_logging()
     args = parse_arguments()
-    setup_logging(debug=args.debug)
 
     try:
         robot_hand = TCPRobotHand(ip=args.ip, port=args.port, timeout=30)
         model = YOLO(args.model_path)
-        camera = default_camera_setup()
-
-        if not camera:
-            logging.error(
-                "Camera setup failed. Ensure camera is connected and configured."
-            )
-            return
-
         board_capture = CameraBoardCapture(
             model=model,
-            camera=camera,
             physical_orientation=Orientation.HUMAN_BOTTOM,
-            capture_delay=0.3,
-            conf_threshold=0.5,
-            iou_threshold=0.45,
-            max_piece_offset=0.8,
+            max_piece_offset=0.99,
             timeout=5000,
+            visualize_board=args.debug,
         )
 
         with chess.engine.SimpleEngine.popen_uci(args.engine_path) as engine:

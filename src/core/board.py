@@ -102,10 +102,10 @@ class PhysicalBoard:
             according to the specified perspective.
         """
 
-        rank = chess.square_rank(square)
-        file = chess.square_file(square)
+        rank_index = chess.square_rank(square)
+        file_index = chess.square_file(square)
 
-        offset = self.piece_offsets[rank][file]
+        offset = self.piece_offsets[rank_index][file_index]
         if perspective == chess.BLACK:
             offset = flip_offset(offset)
         return offset
@@ -127,10 +127,10 @@ class PhysicalBoard:
         if perspective == chess.BLACK:
             piece_offset = flip_offset(piece_offset)
 
-        rank = chess.square_rank(square)
-        file = chess.square_file(square)
+        rank_index = chess.square_rank(square)
+        file_index = chess.square_file(square)
 
-        self.piece_offsets[rank][file] = piece_offset
+        self.piece_offsets[rank_index][file_index] = piece_offset
 
 
 class BoardCapture(ABC):
@@ -147,8 +147,8 @@ class BoardCapture(ABC):
 
         Returns:
             Optional[PhysicalBoard]: A `PhysicalBoard` instance representing the captured state
-                of the board, or `None` if the capture process fails, such as due to a detection 
-                or alignment error.
+                of the board, or `None` if the capture process fails, such as due to a camera
+                error.
         """
         pass
 
@@ -181,9 +181,9 @@ def flip_square(chess_square: chess.Square) -> chess.Square:
     if chess_square not in chess.SQUARES:
         return chess_square
 
-    file = chess.square_file(chess_square)
-    rank = chess.square_rank(chess_square)
+    file_index = chess.square_file(chess_square)
+    rank_index = chess.square_rank(chess_square)
 
-    mirrored_rank = 7 - rank
-    mirrored_file = 7 - file
+    mirrored_rank = 7 - rank_index
+    mirrored_file = 7 - file_index
     return chess.square(mirrored_file, mirrored_rank)

@@ -162,3 +162,5 @@ cython_debug/
 data/
 robot_win_count.txt
 log.txt
+
+.vscode/*

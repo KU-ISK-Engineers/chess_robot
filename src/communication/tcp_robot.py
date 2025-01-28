@@ -1,30 +1,44 @@
 import socket
 import chess
 import logging
-from typing import Optional
 
-from src.core.board import PieceOffset, flip_offset, flip_square
+from src.core.board import PieceOffset, flip_square
 from src.core.moves import PieceMover
 
 logger = logging.getLogger(__name__)
 
 
 class TCPRobotHand(PieceMover):
-    def __init__(self, 
-                 ip: str = "192.168.1.6", 
-                 port: int = 6001, 
-                 timeout: int = 30):
+    def __init__(self, ip: str = "192.168.1.6", port: int = 6001, timeout: int = 60):
         """
         Initializes the TCPRobotHand with IP address, port, and timeout for socket connection.
 
         Args:
-            ip (str): The IP address of the robot's server. Defaults to "192.168.1.6".
-            port (int): The port number for communication with the robot's server. Defaults to 6001.
-            timeout (int): The timeout for socket communication in seconds. Defaults to 30 seconds.
+            ip (str): The IP address of the robot hand.
+            port (int): The port number for communication with the robot hand.
+            timeout (int): The timeout for socket communication in seconds.
         """
         self.ip = ip
         self.port = port
         self.timeout = timeout
+
+        self.robot_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.robot_socket.settimeout(timeout)
+        self._connect()
+
+    def _connect(self) -> bool:
+        try:
+            self.robot_socket.connect((self.ip, self.port))
+            logger.info(f"Connected to TCP robot hand {self.ip}:{self.port}")
+            return True
+        except socket.error as e:
+            logger.error(
+                f"Could not connect to TCP robot hand {self.ip}:{self.port}! Error: {e}"
+            )
+            return False
+
+    def __del__(self):
+        self.robot_socket.close()
 
     def reset(self) -> bool:
         """
@@ -33,7 +47,7 @@ class TCPRobotHand(PieceMover):
         Returns:
             bool: True if the reset command succeeded and was acknowledged by the robot; False otherwise.
         """
-        return self.issue_command("99 99 99 99")
+        return self.issue_command("reset")
 
     def move_piece(
         self,
@@ -44,7 +58,7 @@ class TCPRobotHand(PieceMover):
     ) -> bool:
         """
         Moves a piece from one square to another using the robot hand, adjusting for perspective.
-        
+
         Note: First row is at the bottom of the robot hand's perspective.
 
         Args:
@@ -56,10 +70,10 @@ class TCPRobotHand(PieceMover):
         Returns:
             bool: True if the move command succeeded and was acknowledged by the robot; False otherwise.
         """
-        command = self.form_command(from_square, to_square, color, origin_offset)
+        command = self.form_move_command(from_square, to_square, color, origin_offset)
         return self.issue_command(command)
 
-    def form_command(
+    def form_move_command(
         self,
         from_square: chess.Square,
         to_square: chess.Square,
@@ -68,7 +82,7 @@ class TCPRobotHand(PieceMover):
     ) -> str:
         """
         Forms a command string for moving a piece, accounting for offset and color perspective.
-        
+
         Note: First row is at the bottom of the robot hand's perspective.
 
         Args:
@@ -81,13 +95,9 @@ class TCPRobotHand(PieceMover):
             str: The formatted command string for the robot, including square positions and offsets.
         """
         # Last row is next to the robot hand
-        # TODO: Make this opposite
-        if color == chess.WHITE:
+        if color == chess.BLACK:
             from_square = flip_square(from_square)
             to_square = flip_square(to_square)
-
-            # TODO: Unsure if offsets work
-            origin_offset = flip_offset(origin_offset)
 
         # Convert offsets to integer percentages
         offset_x = int(max(min(origin_offset.x * 100, 100), -100))
@@ -95,48 +105,42 @@ class TCPRobotHand(PieceMover):
 
         # Form command parts as space-separated string
         command_parts = [from_square, offset_x, offset_y, to_square]
-        command_string = " ".join(map(str, command_parts))
+        move_string = " ".join(map(str, command_parts))
+        command_string = "move " + move_string
 
         return command_string
 
-    def issue_command(self, command: str, timeout: Optional[int] = None) -> bool:
+    def issue_command(self, command: str) -> bool:
         """
         Sends a command to the robot hand and waits for a response, confirming command success or failure.
 
         Args:
             command (str): The command string to send to the robot.
-            timeout (Optional[int]): Timeout in seconds for the socket connection. Defaults to the instance timeout.
 
         Returns:
             bool: True if the command was successfully acknowledged by the robot server with a "success" response;
                   False otherwise.
         """
-        if timeout is None:
-            timeout = self.timeout
-
-        # Initialize socket connection to robot
-        robot_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        robot_socket.settimeout(timeout)
+        logger.info(f"Sending TCP command: {command}")
 
         try:
-            robot_socket.connect((self.ip, self.port))
-            logger.info(f"Connected to TCP robot hand {self.ip}:{self.port}")
-            logger.info(f"Sending command {command}")
-
-            # Send command to the robot server
-            message = command.encode("utf-8")
-            robot_socket.sendall(message)
-
-            # Receive and decode the response from the robot server
-            response = robot_socket.recv(1024)
+            self.robot_socket.sendall(command.encode("utf-8"))
+            response = self.robot_socket.recv(1024)
             if response:
                 decoded_response = response.decode("utf-8").strip()
-                if decoded_response == "success":
-                    return True
+                logger.info(f"Received TCP response: {decoded_response}")
+                return decoded_response == "success"
+            else:
+                logger.warning("Received no TCP response")
+        except (ConnectionResetError, BrokenPipeError) as e:
+            logger.error(
+                f"No connection to TCP robot hand {self.ip}:{self.port}, attempting reconnect! Error: {e}"
+            )
+            if self._connect():
+                return self.issue_command(command)
+        except socket.error as e:
+            logger.error(
+                f"Could not connect to TCP robot hand {self.ip}:{self.port}! Error: {e}"
+            )
 
-            return False
-        except Exception:
-            logger.error(f"Could not connect to TCP robot hand {self.ip}:{self.port}!")
-            return False
-        finally:
-            robot_socket.close()
+        return False
