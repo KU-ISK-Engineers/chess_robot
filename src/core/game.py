@@ -66,7 +66,7 @@ class Game:
         self.engine = engine
         self.depth = depth
         self.skill_level = skill_level
-        self.time = thinking_time
+        self.thinking_time = thinking_time
         self.human_color = human_color
         self.physical_board = PhysicalBoard(chess_board)
         self.resigned = False
@@ -113,7 +113,6 @@ class Game:
         )
 
         self.piece_mover.reset()
-
 
     def sync_board(self) -> bool:
         """Synchronizes the physical board with the logical board state.
@@ -167,14 +166,14 @@ class Game:
         """
         self.depth = depth
 
-    def set_thinking_time(self, time: float = 1.0) -> None:
-        """Sets the depth for engine's move calculations
+    def set_thinking_time(self, thinking_time: float = 1.0) -> None:
+        """Sets the thinking time for the engine's move calculations.
 
         Args:
-            depth (int): The depth level for the chess engine calculations. Defaults to 4.
+            thinking_time (float): The amount of time (in seconds) the chess engine
+                                will use to think before making a move. Defaults to 1.0.
         """
-        self.time = time
-
+        self.thinking_time = thinking_time
 
     def robot_makes_move(
         self, move: Optional[chess.Move] = None
@@ -193,7 +192,9 @@ class Game:
         if captured_board is None:
             return None
 
-        if not are_boards_equal(self.physical_board.chess_board, captured_board.chess_board):
+        if not are_boards_equal(
+            self.physical_board.chess_board, captured_board.chess_board
+        ):
             logger.info(
                 "Captured board does not match previous legal board for robot to move; waiting for realignment"
             )
@@ -201,11 +202,12 @@ class Game:
 
         if move is None:
             result = self.engine.play(
-                self.physical_board.chess_board, chess.engine.Limit(depth=self.depth, time=self.time)
-            )            
+                self.physical_board.chess_board,
+                chess.engine.Limit(depth=self.depth, time=self.thinking_time),
+            )
             move = result.move
 
-        logger.info(f'Current board: {self.physical_board.chess_board.fen()}')
+        logger.info(f"Current board: {self.physical_board.chess_board.fen()}")
         logger.info("Robot is making move %s", move and move.uci())
 
         if not move or move not in self.physical_board.chess_board.legal_moves:
