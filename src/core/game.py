@@ -112,7 +112,6 @@ class Game:
 
         self.piece_mover.reset()
 
-
     def sync_board(self) -> bool:
         """Synchronizes the physical board with the logical board state.
 
@@ -125,17 +124,16 @@ class Game:
         """
         logger.info("Synchronizing physical board...")
 
-        expected_board = self.physical_board.chess_board
         captured_board = None
 
         done = False
         while not done:
             captured_board = self.board_capture.capture_board(self.human_color)
             if captured_board is None:
-                continue  # Keeps trying until a valid board capture
+                return False
 
             moved, done = iter_reset_board(
-                self.piece_mover, self.physical_board, expected_board, self.robot_color
+                self.piece_mover, captured_board, self.physical_board, self.robot_color
             )
             if not moved:
                 break
@@ -182,7 +180,9 @@ class Game:
         if captured_board is None:
             return None
 
-        if not are_boards_equal(self.physical_board.chess_board, captured_board.chess_board):
+        if not are_boards_equal(
+            self.physical_board.chess_board, captured_board.chess_board
+        ):
             logger.info(
                 "Captured board does not match previous legal board for robot to move; waiting for realignment"
             )
@@ -194,7 +194,7 @@ class Game:
             )
             move = result.move
 
-        logger.info(f'Current board: {self.physical_board.chess_board.fen()}')
+        logger.info(f"Current board: {self.physical_board.chess_board.fen()}")
         logger.info("Robot is making move %s", move and move.uci())
 
         if not move or move not in self.physical_board.chess_board.legal_moves:

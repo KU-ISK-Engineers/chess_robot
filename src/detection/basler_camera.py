@@ -15,12 +15,13 @@ from src.detection.model import grayscale_to_board
 
 logger = logging.getLogger(__name__)
 
+
 class Orientation(Enum):
     HUMAN_BOTTOM = 0
     ROBOT_BOTTOM = 1
 
 
-def default_camera_setup() -> Optional[pylon.InstantCamera]:
+def default_camera_setup() -> pylon.InstantCamera:
     """
     Configures and initializes a camera with default settings for capturing images.
 
@@ -42,8 +43,8 @@ def default_camera_setup() -> Optional[pylon.InstantCamera]:
         logger.info("Camera successfully initialized and started grabbing.")
         return camera
     except Exception:
-        logger.exception(f"Failed to initialize camera!")
-        return None
+        logger.exception("Failed to initialize camera!")
+        raise
 
 
 def crop_image_by_area(image: np.ndarray, area) -> np.ndarray:
@@ -52,13 +53,13 @@ def crop_image_by_area(image: np.ndarray, area) -> np.ndarray:
 
     Args:
         image (np.ndarray): The image to be cropped.
-        area: Four corner points defining the region to crop.
+        area: Four corner points defining the region to crop in the order of top-left, top-right, bottom-right, bottom-left
 
     Returns:
         np.ndarray: The cropped image focused on the specified area.
     """
 
-    def max_dimension(p1, p2, p3, p4):
+    def max_dimension(p1, p2, p3, p4) -> tuple[int, int]:
         width = max(np.linalg.norm(p2 - p1), np.linalg.norm(p4 - p3))
         height = max(np.linalg.norm(p3 - p1), np.linalg.norm(p2 - p4))
         return int(width), int(height)
@@ -114,13 +115,12 @@ class CameraBoardCapture(BoardCapture):
     def __init__(
         self,
         model: YOLO,
-        camera: Optional[pylon.InstantCamera] = None,
         physical_orientation: Orientation = Orientation.HUMAN_BOTTOM,
         timeout: int = 5000,
-        capture_delay: float = 0.3,
         conf_threshold: float = 0.5,
         iou_threshold: float = 0.45,
-        max_piece_offset: float = 0.4,
+        max_piece_offset: float = 0.9,
+        visualize_board: bool = False,
     ) -> None:
         """
         Initializes CameraBoardDetection with model, camera, and settings.
@@ -138,11 +138,8 @@ class CameraBoardCapture(BoardCapture):
         Raises:
             RuntimeError: If camera initialization fails.
         """
-        self.camera = camera or default_camera_setup()
-        if self.camera is None:
-            raise RuntimeError("Camera initialization failed.")
+        self.camera = default_camera_setup()
         self.timeout = timeout
-        self.capture_delay = capture_delay
         self.model = model
         self.area = None
         self.board = None
@@ -150,6 +147,7 @@ class CameraBoardCapture(BoardCapture):
         self.iou_threshold = iou_threshold
         self.max_piece_offset = max_piece_offset
         self.physical_orientation = physical_orientation
+        self.visualize_board = visualize_board
 
     def capture_image(self) -> Optional[np.ndarray]:
         """
@@ -169,17 +167,17 @@ class CameraBoardCapture(BoardCapture):
                 self.timeout, pylon.TimeoutHandling_Return
             )
             if not grab_result.GrabSucceeded():
-                logger.warning("Failed to grab image from camera!")
-                continue
+                logger.error("Failed to grab image from camera!")
+                return None
 
             image = preprocess_image(grab_result.Array)
             cropped_image = self._crop_image(image)
 
             if cropped_image is not None:
                 return cropped_image
+
             logger.warning("No board detected with aruco stickers; retrying.")
             time.sleep(1)
-
 
     def capture_board(self, human_color: chess.Color) -> Optional[PhysicalBoard]:
         """
@@ -200,38 +198,39 @@ class CameraBoardCapture(BoardCapture):
             else not human_color
         )
 
-        first_image = self.capture_image()
-        if first_image is None:
-            return None
+        while True:
+            first_image = self.capture_image()
+            if first_image is None:
+                return None
 
-        first_board = grayscale_to_board(
-            first_image,
-            perspective,
-            self.model,
-            self.conf_threshold,
-            self.iou_threshold,
-            self.max_piece_offset,
-        )
+            first_board = grayscale_to_board(
+                first_image,
+                perspective,
+                self.model,
+                self.conf_threshold,
+                self.iou_threshold,
+                self.max_piece_offset,
+                visualize=self.visualize_board,
+            )
 
-        second_image = self.capture_image()
-        if second_image is None:
-            return None
-        
-        second_board = grayscale_to_board(
-            second_image,
-            perspective,
-            self.model,
-            self.conf_threshold,
-            self.iou_threshold,
-            self.max_piece_offset,
-        )
+            second_image = self.capture_image()
+            if second_image is None:
+                return None
 
-        if not are_boards_equal(first_board.chess_board, second_board.chess_board):
-            logger.info("Inconsistent board states detected; capture failed.")
-            return None
+            second_board = grayscale_to_board(
+                second_image,
+                perspective,
+                self.model,
+                self.conf_threshold,
+                self.iou_threshold,
+                self.max_piece_offset,
+                visualize=self.visualize_board,
+            )
 
-        return first_board
+            if are_boards_equal(first_board.chess_board, second_board.chess_board):
+                return first_board
 
+            logger.info("Inconsistent board states captured; retrying..")
 
     def _crop_image(self, image: np.ndarray) -> Optional[np.ndarray]:
         """
@@ -246,7 +245,7 @@ class CameraBoardCapture(BoardCapture):
         area = detect_aruco_area(image)
         if area is not None:
             self.area = area
-        
+
         if self.area is None:
             logger.warning("No ArUco area detected.")
             return None
