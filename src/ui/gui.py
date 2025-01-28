@@ -7,12 +7,13 @@ from PIL import Image, ImageTk
 import chess
 import chess.svg
 import cairosvg
+from typing import Union
 
 from src.core.game import Player, Game
 
 logger = logging.getLogger(__name__)
 
-game_thread: threading.Thread | None = None
+game_thread: Union[threading.Thread, None] = None
 
 
 def update_robot_win_count() -> None:
