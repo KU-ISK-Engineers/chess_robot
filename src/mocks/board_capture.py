@@ -69,8 +69,7 @@ class SimulatedBoardCapture(BoardCapture):
 
         if self.game.current_player == Player.HUMAN:
             result = self.engine.play(
-                chess_board,
-                chess.engine.Limit(time=0.1, depth=4),
+                chess_board, chess.engine.Limit(time=0.01, depth=4), 
             )
             if not result or not result.move:
                 return None

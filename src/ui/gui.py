@@ -7,12 +7,13 @@ from PIL import Image, ImageTk
 import chess
 import chess.svg
 import cairosvg
+from typing import Union
 
 from src.core.game import Player, Game
 
 logger = logging.getLogger(__name__)
 
-game_thread: threading.Thread | None = None
+game_thread: Union[threading.Thread, None] = None
 
 
 def update_robot_win_count() -> None:
@@ -104,11 +105,11 @@ def show_check_msg(frame: tk.Frame) -> None:
 def show_wrong_move_msg(frame: tk.Frame) -> None:
     place_img(
         path="images/wrong_move.png",
-        x=100,
+        x=650,
         y=100,
         show_for=2000,
         frame=frame,
-        resize_height=200,
+        resize_height=150,
     )
 
 
@@ -151,12 +152,11 @@ def svg_board(frame: tk.Frame) -> None:
 
 
 def chess_engine_thread() -> None:
-
-    screen_width=root.winfo_width()
-    screen_height=root.winfo_height()
+    screen_width = root.winfo_width()
+    screen_height = root.winfo_height()
 
     frame = tk.Frame(root, bd=0, background="#FFFFFF")
-    frame.place(x=screen_width/3, y=screen_height/4, width=640, height=640)
+    frame.place(x=screen_width/3, y=screen_height/4, width=1000, height=640)
     svg_board(frame)
     while True:
         state = game.result()
@@ -187,15 +187,19 @@ def select_level(level: str) -> None:
     if level == "beginner":
         game.set_depth(1)
         game.set_skill_level(0)
+        game.set_thinking_time(0.05)
     elif level == "intermediate":
         game.set_depth(2)
         game.set_skill_level(2)
+        game.set_thinking_time(0.1)
     elif level == "advanced":
         game.set_depth(3)
         game.set_skill_level(4)
+        game.set_thinking_time(0.5)
     elif level == "hard":
         game.set_depth(6)
         game.set_skill_level(20)
+        game.set_thinking_time(1.0)
     color_screen()
 
 
@@ -203,8 +207,8 @@ def level_screen() -> None:
     clear_screen()
     count_label.config(text=str(read_robot_count_from_file()))
 
-    screen_width=root.winfo_width()
-    screen_height=root.winfo_height()
+    screen_width = root.winfo_width()
+    screen_height = root.winfo_height()
 
     frame = tk.Frame(root, bd=0, background="#FFFFFF")
     frame.place(x=screen_width/3, y=screen_height/4, width=screen_width/2, height=screen_height/4*3)
@@ -248,8 +252,8 @@ def level_screen() -> None:
 def color_screen() -> None:
     clear_screen()
 
-    screen_width=root.winfo_width()
-    screen_height=root.winfo_height()
+    screen_width = root.winfo_width()
+    screen_height = root.winfo_height()
 
     frame = tk.Frame(root, bd=0, background="#FFFFFF")
     frame.place(x=screen_width/2.5, y=screen_height/4, width=screen_width/2, height=screen_height/4*3)
@@ -281,12 +285,11 @@ def assign_color(selected_color: str) -> None:
         game.reset_state(human_color=chess.BLACK)
     game_screen()
 
-
 def show_game_result() -> None:
     clear_screen()
 
-    screen_width=root.winfo_width()
-    screen_height=root.winfo_height()
+    screen_width = root.winfo_width()
+    screen_height = root.winfo_height()
 
     frame = tk.Frame(root, bd=0, background="#FFFFFF")
     frame.place(x=screen_width/4, y=screen_height/4, width=750, height=720)
@@ -397,6 +400,8 @@ def gui_main(game_obj: Game, fullscreen: bool = True, splash: bool = True):
     root.attributes("-fullscreen", fullscreen)
     if splash:
         root.attributes("-type", "splash")
+    
+    root.update()
 
     root.update_idletasks()
 

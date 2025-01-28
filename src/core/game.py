@@ -40,6 +40,7 @@ class Game:
         human_color: chess.Color = chess.WHITE,
         depth: int = 4,
         skill_level: int = 0,
+        thinking_time: float = 1.0,
     ) -> None:
         """Initializes the Game with board capture, movement, engine, player color, and depth.
 
@@ -65,6 +66,7 @@ class Game:
         self.engine = engine
         self.depth = depth
         self.skill_level = skill_level
+        self.thinking_time = thinking_time
         self.human_color = human_color
         self.physical_board = PhysicalBoard(chess_board)
         self.resigned = False
@@ -163,6 +165,15 @@ class Game:
         """
         self.depth = depth
 
+    def set_thinking_time(self, thinking_time: float = 1.0) -> None:
+        """Sets the thinking time for the engine's move calculations.
+
+        Args:
+            thinking_time (float): The amount of time (in seconds) the chess engine
+                                will use to think before making a move. Defaults to 1.0.
+        """
+        self.thinking_time = thinking_time
+
     def robot_makes_move(
         self, move: Optional[chess.Move] = None
     ) -> Optional[chess.Move]:
@@ -190,7 +201,8 @@ class Game:
 
         if move is None:
             result = self.engine.play(
-                self.physical_board.chess_board, chess.engine.Limit(depth=self.depth)
+                self.physical_board.chess_board,
+                chess.engine.Limit(depth=self.depth, time=self.thinking_time),
             )
             move = result.move
 
