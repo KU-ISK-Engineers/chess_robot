@@ -37,8 +37,8 @@ class RobotTestCase(unittest.TestCase, ABC):
         self.chess_board = chess.Board()
         self.pieces_reserve: dict[int, list[chess.Piece]] = {}
 
-    def capture_board(self) -> PhysicalBoard:
-        captured_board = self.board_capture.capture_board(self.human_color)
+    def capture_board(self, human_color) -> PhysicalBoard:
+        captured_board = self.board_capture.capture_board(human_color)
         if captured_board is None:
             raise RuntimeError("Failed to capture board")
         return captured_board
@@ -49,7 +49,7 @@ class RobotTestCase(unittest.TestCase, ABC):
         robot_color = not human_color
         done = False
         while not done:
-            captured_board = self.capture_board()
+            captured_board = self.capture_board(human_color)
             moved, done = iter_reset_board(
                 self.robot_hand,
                 captured_board,
@@ -61,7 +61,7 @@ class RobotTestCase(unittest.TestCase, ABC):
 
         self.assertTrue(done, "Function sync board failed")
 
-        captured_board = self.capture_board()
+        captured_board = self.capture_board(human_color)
         self.assertTrue(
             are_boards_equal(captured_board.chess_board, expected_board),
             "Boards do not match after board rearrangement",
@@ -82,7 +82,7 @@ class RobotTestCase(unittest.TestCase, ABC):
         if isinstance(to_square, str):
             to_square = chess.parse_square(to_square)
 
-        captured_board = self.capture_board()
+        captured_board = self.capture_board(self.human_color)
         self.assertTrue(
             are_boards_equal(captured_board.chess_board, self.chess_board),
             "Board arrangement in memory does not match physical board arrangement",
@@ -108,7 +108,7 @@ class RobotTestCase(unittest.TestCase, ABC):
         )
         self.assertTrue(done, "Function move piece failed")
 
-        captured_board = self.capture_board()
+        captured_board = self.capture_board(self.human_color)
         self.assertTrue(
             are_boards_equal(captured_board.chess_board, expected_chess_board),
             "Boards do not match after move",
