@@ -200,21 +200,13 @@ def move_piece(
     Returns:
         bool: `True` if the piece was moved successfully on the physical board; `False` otherwise.
     """
-    move_str = piece_move_str(from_square, to_square)
 
     if from_square in chess.SQUARES:
-        if board.chess_board.piece_at(from_square) is None:
-            logger.warning(f"Attempted moving empty square {move_str}")
-            return False
-
         origin_offset = board.get_piece_offset(from_square, color)
     else:
         origin_offset = OFFSET_SQUARE_CENTER
 
-    if to_square in chess.SQUARES and board.chess_board.piece_at(to_square) is not None:
-        logger.warning(f"Attempted moving piece to a non-empty square {move_str}")
-        return False
-
+    move_str = piece_move_str(from_square, to_square)
     res = mover.move_piece(from_square, to_square, color, origin_offset)
     if not res:
         logger.error(f"Failed moving piece {move_str}!")
