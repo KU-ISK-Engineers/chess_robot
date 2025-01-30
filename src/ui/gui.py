@@ -165,7 +165,7 @@ def chess_engine_thread() -> None:
         if state == "resigned":
             logger.info("Player resigned, stopping game")
             update_robot_win_count()
-            level_screen()
+            return level_screen()
         elif state != "*":
             logger.info("Game over")
             return show_game_result()
