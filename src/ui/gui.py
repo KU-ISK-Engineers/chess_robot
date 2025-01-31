@@ -174,7 +174,7 @@ def chess_engine_thread() -> None:
             valid_move = game.robot_makes_move()
             if valid_move:
                 svg_board(frame)
-            if game.check_if_check():
+            if game.get_chess_board().is_check():
                 show_check_msg(frame)
         elif game.current_player == Player.HUMAN:
             move, valid = game.human_made_move()
@@ -183,7 +183,7 @@ def chess_engine_thread() -> None:
             elif move and not valid:
                 show_wrong_move_msg(frame=frame)
             
-            if game.check_if_check():
+            if game.get_chess_board().is_check():
                 show_check_msg(frame)
 
 
