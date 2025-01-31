@@ -222,6 +222,10 @@ class Game:
         self.current_player = Player.HUMAN
         self.physical_board.chess_board.push(move)
         return move
+   
+    def check_if_check(self ) -> bool:                
+        is_check = self.physical_board.chess_board.is_check()
+        return is_check
 
     def human_made_move(self) -> Tuple[Optional[chess.Move], bool]:
         """Detects and validates the move made by the human player.

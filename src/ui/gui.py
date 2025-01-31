@@ -97,9 +97,8 @@ def place_button(
     button.place(x=x, y=y)
 
 
-# not used rn
 def show_check_msg(frame: tk.Frame) -> None:
-    place_img(path="images/check_msg.png", x=100, y=100, show_for=3000, frame=frame)
+    place_img(path="images/check_msg.png", x=620, y=100, show_for=2000, frame=frame)
 
 
 def show_wrong_move_msg(frame: tk.Frame) -> None:
@@ -175,12 +174,17 @@ def chess_engine_thread() -> None:
             valid_move = game.robot_makes_move()
             if valid_move:
                 svg_board(frame)
+            if game.check_if_check():
+                show_check_msg(frame)
         elif game.current_player == Player.HUMAN:
             move, valid = game.human_made_move()
             if move and valid:
                 svg_board(frame)
             elif move and not valid:
                 show_wrong_move_msg(frame=frame)
+            
+            if game.check_if_check():
+                show_check_msg(frame)
 
 
 def select_level(level: str) -> None:
