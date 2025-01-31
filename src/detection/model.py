@@ -3,6 +3,7 @@ import cv2
 from ultralytics import YOLO
 import chess
 import numpy as np
+import time
 
 from src.core.board import PhysicalBoard, PieceOffset, flip_square
 
@@ -59,7 +60,15 @@ def detect_grayscale(
                          Empty lists are returned if no detections meet the thresholds.
     """
     image = cv2.merge([grayscale_image] * 3)
+    
+    start_time = time.perf_counter()
+    
     results = model.predict(image, conf=conf_threshold, iou=iou_threshold)
+    
+    end_time = time.perf_counter()
+    time_elapsed = end_time - start_time
+    print(f"Time elapsed {time_elapsed:.2f} seconds")
+    
     labels = model.names
 
     bbox, label, conf = [], [], []
