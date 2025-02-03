@@ -98,7 +98,7 @@ def place_button(
 
 
 def show_check_msg(frame: tk.Frame) -> None:
-    place_img(path="images/check_msg.png", x=620, y=100, show_for=2000, frame=frame)
+    place_img(path="images/check_msg.png", x=640, y=100, show_for=2000, frame=frame)
 
 
 def show_wrong_move_msg(frame: tk.Frame) -> None:
