@@ -45,7 +45,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--model_path",
         type=str,
-        default="training/models/yolo8_200.pt",
+        default="training/models/yolo8_200.onnx",
         help="Path to YOLO model",
     )
     parser.add_argument(
